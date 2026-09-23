@@ -1,8 +1,8 @@
-# Asbolution
+# Absolution
 
 Confessionnal virtuel. Avouez, recevez votre pénitence, partagez votre certificat d’absolution.
 
-**→ https://chtabay.github.io/Asbolution/**
+**→ https://chtabay.github.io/Absolution/**
 
 ## Principe
 

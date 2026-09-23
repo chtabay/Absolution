@@ -1,4 +1,4 @@
-// Asbolution — confessionnal virtuel.
+// Absolution — confessionnal virtuel.
 // Tout se passe dans le navigateur : rien n’est envoyé, rien n’est stocké.
 // Le verdict est déterministe : même confession, même sentence.
 
@@ -380,7 +380,7 @@ async function drawCert(v, d, text) {
   stamp(x, W - M - 230, BOTTOM - 105, v.k);
 
   // Signature du site
-  set(`600 34px ${CAPS}`, '#f3cf85'); spaced(x, 'ASBOLUTION', cx, BOTTOM + 68, 12);
+  set(`600 34px ${CAPS}`, '#f3cf85'); spaced(x, 'ABSOLUTION', cx, BOTTOM + 68, 12);
   set(`italic 400 27px ${SERIF}`, '#a89a88'); x.fillText((location.host + location.pathname).replace(/\/(index\.html)?$/, ''), cx, BOTTOM + 112);
   return c;
 }
@@ -458,7 +458,7 @@ function renderCert() {
   $('#remark').textContent = fr(d.remark);
   $('#prayers').textContent = d.prayers;
   $('#task').textContent = fr(d.penance);
-  document.title = `Certificat d’absolution · ${d.sin} — Asbolution`;
+  document.title = `Certificat d’absolution · ${d.sin} — Absolution`;
   prepareImage(d, shown);
 }
 
