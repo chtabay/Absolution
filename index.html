@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Absolution — Confessionnal virtuel</title>
+  <meta name="description" content="Avouez votre péché, recevez votre pénitence et un certificat d’absolution à partager. Anonyme : rien n’est envoyé, rien n’est enregistré.">
+  <meta name="theme-color" content="#0d0a08">
+  <link rel="canonical" href="https://chtabay.github.io/Absolution/">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:site_name" content="Absolution">
+  <meta property="og:title" content="Absolution — Confessionnal virtuel">
+  <meta property="og:description" content="Avouez. Expiez. Partagez. Votre pénitence et votre certificat d’absolution en dix secondes.">
+  <meta property="og:url" content="https://chtabay.github.io/Absolution/">
+  <meta property="og:image" content="https://chtabay.github.io/Absolution/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Absolution, confessionnal virtuel : un certificat d’absolution tamponné « Ego te absolvo ».">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preload" href="fonts/eb-garamond.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/cinzel.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <main>
+    <header class="brand">
+      <svg class="cross" viewBox="0 0 24 32" aria-hidden="true"><path d="M10 0h4v9h8v4h-8v19h-4V13H2V9h8z"/></svg>
+      <h1>Absolution</h1>
+      <p>Confessionnal virtuel</p>
+    </header>
+
+    <section id="confess">
+      <form id="form" class="booth" novalidate>
+        <div class="grille" aria-hidden="true"><span>Je vous écoute.</span></div>
+        <div class="booth-body">
+          <label for="text">Pardonnez-moi, mon père, car j’ai péché…</label>
+          <textarea id="text" rows="4" maxlength="280" placeholder="J’ai…" enterkeyhint="send" autocomplete="off" aria-describedby="error"></textarea>
+          <div class="meta">
+            <button type="button" id="inspire" class="link">Pas d’inspiration ?</button>
+            <span id="count" aria-hidden="true">0 / 280</span>
+          </div>
+          <p id="error" class="error" aria-live="polite"></p>
+          <button id="submit" class="btn primary">Se confesser</button>
+        </div>
+      </form>
+      <p class="note">Anonyme. Rien n’est envoyé, rien n’est enregistré : tout reste dans votre navigateur.</p>
+    </section>
+
+    <section id="verdict" hidden>
+      <p class="intro">Quelqu’un s’est confessé. Voici son certificat.</p>
+
+      <article id="cert" class="cert" aria-labelledby="cert-title">
+        <header>
+          <h2 id="cert-title" tabindex="-1">Certificat d’absolution</h2>
+          <p class="no"><span id="no"></span> · <span id="date"></span></p>
+        </header>
+        <blockquote id="quote" class="quote"></blockquote>
+        <div id="sealed" class="sealed">
+          <svg viewBox="-50 -50 100 100" aria-hidden="true">
+            <circle r="42" fill="#a3212a" stroke="#a3212a" stroke-width="9" stroke-dasharray="4 6" stroke-linecap="round"/>
+            <circle r="30" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="3"/>
+            <path d="M-4-24h8v48h-8zM-17-12h34v8h-34z" fill="#000" fill-opacity=".28"/>
+          </svg>
+          <span>Confession scellée</span>
+          <small>Secret de la confession</small>
+        </div>
+        <button type="button" id="reveal" class="seal-btn"></button>
+        <dl class="facts">
+          <div><dt>Péché</dt><dd id="sin"></dd></div>
+          <div>
+            <dt>Gravité</dt>
+            <dd><span id="gauge" class="gauge" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span id="level"></span><span id="level-sr" class="sr"></span></dd>
+          </div>
+        </dl>
+        <p id="remark" class="remark"></p>
+        <div class="penance">
+          <h3>Pénitence</h3>
+          <p id="prayers"></p>
+          <p id="task"></p>
+        </div>
+        <footer>
+          <p>Allez en paix.</p>
+          <p class="stamp" lang="la"><small>Ego te</small> Absolvo</p>
+        </footer>
+      </article>
+
+      <div class="actions">
+        <div class="row">
+          <button type="button" id="share" class="btn primary">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+            <span>Copier le lien</span>
+          </button>
+          <button type="button" id="image" class="btn" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+            Image
+          </button>
+        </div>
+        <button type="button" id="again" class="link">Nouvelle confession</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Absolution non contractuelle, sans valeur sacramentelle.</p>
+    <p><a href="https://github.com/chtabay/Absolution">Code source</a></p>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <noscript><p class="noscript">Le confessionnal a besoin de JavaScript pour vous entendre.</p></noscript>
+</body>
+</html>
