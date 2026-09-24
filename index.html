@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Absolution — Confessionnal virtuel</title>
-  <meta name="description" content="Avouez votre péché, recevez votre pénitence et un certificat d’absolution à partager. Anonyme : rien n’est envoyé, rien n’est enregistré.">
+  <meta name="description" content="Examen de conscience complet, bilan de vos péchés capitaux, pénitence et certificat d’absolution à partager. Anonyme : rien n’est envoyé, rien n’est enregistré.">
   <meta name="theme-color" content="#0d0a08">
   <link rel="canonical" href="https://chtabay.github.io/Absolution/">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -13,7 +13,7 @@
   <meta property="og:locale" content="fr_FR">
   <meta property="og:site_name" content="Absolution">
   <meta property="og:title" content="Absolution — Confessionnal virtuel">
-  <meta property="og:description" content="Avouez. Expiez. Partagez. Votre pénitence et votre certificat d’absolution en dix secondes.">
+  <meta property="og:description" content="Examen de conscience, bilan de vos péchés capitaux, pénitence et certificat d’absolution.">
   <meta property="og:url" content="https://chtabay.github.io/Absolution/">
   <meta property="og:image" content="https://chtabay.github.io/Absolution/og.png">
   <meta property="og:image:width" content="1200">
@@ -33,54 +33,109 @@
       <p>Confessionnal virtuel</p>
     </header>
 
-    <section id="confess">
+    <!-- 1. Accueil -->
+    <section id="intro" class="screen">
+      <div class="booth">
+        <div class="grille" aria-hidden="true"><span>Je vous écoute.</span></div>
+        <div class="booth-body">
+          <h2 class="formula" tabindex="-1">Pardonnez-moi, mon père, car j’ai péché.</h2>
+          <p id="last-q" class="ask">Ma dernière confession remonte à…</p>
+          <div id="last" class="choices" role="group" aria-labelledby="last-q"></div>
+        </div>
+      </div>
+      <ol class="path">
+        <li>Examen de conscience</li>
+        <li>Bilan</li>
+        <li>Confession libre</li>
+        <li>Absolution</li>
+      </ol>
+      <p class="note">Anonyme. Vos réponses restent dans votre navigateur : rien n’est envoyé, rien n’est enregistré.</p>
+    </section>
+
+    <!-- 2. Examen de conscience -->
+    <section id="exam" class="screen" hidden>
+      <div class="progress" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <p id="step" class="step"></p>
+      <div id="sins"></div>
+      <nav class="stepnav" aria-label="Navigation de l’examen">
+        <button type="button" class="btn back" data-back>Retour</button>
+        <button type="button" id="next" class="btn primary"></button>
+      </nav>
+    </section>
+
+    <!-- 3. Bilan -->
+    <section id="bilan" class="screen" hidden>
+      <p class="kicker">Bilan de l’examen</p>
+      <h2 id="b-total" class="stat" tabindex="-1"></h2>
+      <p id="b-grave" class="stat-sub"></p>
+      <p class="b-gravity"><span id="b-gauge" class="gauge" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span> <span id="b-level"></span></p>
+      <p id="b-verdict" class="b-verdict"></p>
+      <ol id="b-profile" class="profile" aria-label="Péchés avoués, par péché capital"></ol>
+      <details class="detail">
+        <summary>Voir le détail de mes réponses</summary>
+        <div id="b-detail"></div>
+      </details>
+      <div class="actions">
+        <button type="button" id="to-libre" class="btn primary">Poursuivre ma confession</button>
+        <button type="button" class="link" data-back>Modifier mes réponses</button>
+      </div>
+    </section>
+
+    <!-- 4. Confession libre -->
+    <section id="libre" class="screen" hidden>
       <form id="form" class="booth" novalidate>
         <div class="grille" aria-hidden="true"><span>Je vous écoute.</span></div>
         <div class="booth-body">
-          <label for="text">Pardonnez-moi, mon père, car j’ai péché…</label>
-          <textarea id="text" rows="4" maxlength="280" placeholder="J’ai…" enterkeyhint="send" autocomplete="off" aria-describedby="error"></textarea>
-          <div class="meta">
-            <button type="button" id="inspire" class="link">Pas d’inspiration ?</button>
-            <span id="count" aria-hidden="true">0 / 280</span>
-          </div>
-          <p id="error" class="error" aria-live="polite"></p>
-          <button id="submit" class="btn primary">Se confesser</button>
+          <h2 tabindex="-1"><label for="text">Autre chose sur la conscience ?</label></h2>
+          <p id="text-hint" class="hint">Facultatif, et purement déclaratif : rien n’est analysé.</p>
+          <textarea id="text" rows="4" maxlength="280" placeholder="J’ai…" enterkeyhint="send" autocomplete="off" aria-describedby="text-hint"></textarea>
+          <p class="meta"><span id="count">0 / 280</span></p>
+          <button id="submit" class="btn primary">Recevoir l’absolution</button>
         </div>
       </form>
-      <p class="note">Anonyme. Rien n’est envoyé, rien n’est enregistré : tout reste dans votre navigateur.</p>
+      <p class="center"><button type="button" class="link" data-back>Retour au bilan</button></p>
     </section>
 
-    <section id="verdict" hidden>
+    <!-- 5. Absolution -->
+    <section id="verdict" class="screen" hidden>
       <p class="intro">Quelqu’un s’est confessé. Voici son certificat.</p>
 
       <article id="cert" class="cert" aria-labelledby="cert-title">
         <header>
           <h2 id="cert-title" tabindex="-1">Certificat d’absolution</h2>
           <p class="no"><span id="no"></span> · <span id="date"></span></p>
+          <p class="last">Dernière confession : <span id="c-last"></span></p>
         </header>
-        <blockquote id="quote" class="quote"></blockquote>
-        <div id="sealed" class="sealed">
-          <svg viewBox="-50 -50 100 100" aria-hidden="true">
-            <circle r="42" fill="#a3212a" stroke="#a3212a" stroke-width="9" stroke-dasharray="4 6" stroke-linecap="round"/>
-            <circle r="30" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="3"/>
-            <path d="M-4-24h8v48h-8zM-17-12h34v8h-34z" fill="#000" fill-opacity=".28"/>
-          </svg>
-          <span>Confession scellée</span>
-          <small>Secret de la confession</small>
+        <div id="libre-block" class="libre-block">
+          <blockquote id="quote" class="quote"></blockquote>
+          <div id="sealed" class="sealed">
+            <svg viewBox="-50 -50 100 100" aria-hidden="true">
+              <circle r="42" fill="#a3212a" stroke="#a3212a" stroke-width="9" stroke-dasharray="4 6" stroke-linecap="round"/>
+              <circle r="30" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="3"/>
+              <path d="M-4-24h8v48h-8zM-17-12h34v8h-34z" fill="#000" fill-opacity=".28"/>
+            </svg>
+            <span>Confession libre scellée</span>
+            <small>Secret de la confession</small>
+          </div>
+          <button type="button" id="reveal" class="seal-btn"></button>
         </div>
-        <button type="button" id="reveal" class="seal-btn"></button>
         <dl class="facts">
-          <div><dt>Péché</dt><dd id="sin"></dd></div>
+          <div><dt>Péché dominant</dt><dd id="sin"></dd></div>
           <div>
             <dt>Gravité</dt>
             <dd><span id="gauge" class="gauge" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span id="level"></span><span id="level-sr" class="sr"></span></dd>
           </div>
         </dl>
+        <section class="cert-profile">
+          <h3 id="c-total"></h3>
+          <ol id="c-profile" class="profile" aria-labelledby="c-total"></ol>
+        </section>
         <p id="remark" class="remark"></p>
         <div class="penance">
           <h3>Pénitence</h3>
           <p id="prayers"></p>
           <p id="task"></p>
+          <p id="task2" class="task2"></p>
         </div>
         <footer>
           <p>Allez en paix.</p>
