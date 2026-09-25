@@ -14,6 +14,12 @@ Confessionnal virtuel. Examinez votre conscience, avouez, recevez votre péniten
 
 Mêmes réponses, même verdict : le prêtre ne change pas d’avis.
 
+## Maquette « Limbes »
+
+Dans `limbes/` : la maquette cliquable d’un autre concept, une page où l’on peut tout dire, sans prêtre ni jugement. Voir [`limbes/README.md`](limbes/README.md).
+
+**→ https://chtabay.github.io/Absolution/limbes/**
+
 ## Confidentialité
 
 - Site 100 % statique : pas de serveur, pas de cookie, pas de traceur, aucune requête externe (polices incluses dans le dépôt).
