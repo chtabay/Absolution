@@ -20,6 +20,7 @@ Les maquettes cliquables d’un autre concept : un endroit où l’on peut tout 
 
 **→ https://chtabay.github.io/Absolution/maquettes/**
 
+- `limbes-d/` : **D, l’île**. Les cases de B, une île en low poly qui pousse avec chaque dépôt selon une grammaire (famille, espèce, taille, état), et un archipel. Voir [`limbes-d/README.md`](limbes-d/README.md).
 - `limbes-c/` : **C, le ciel**. Les cases de B, une entité qui change avec elles, et un ciel étoilé où l’envoyer. Voir [`limbes-c/README.md`](limbes-c/README.md).
 - `entites/` : **la planche de l’entité**. Quatre incarnations de ce qu’on dépose, réglables, et le geste de l’envoyer au monde. Voir [`entites/README.md`](entites/README.md).
 - `limbes-b/` : **B, les cases**. Trois questions à cocher, puis on voit. Fond clair, police ronde. Voir [`limbes-b/README.md`](limbes-b/README.md).

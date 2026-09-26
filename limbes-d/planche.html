@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Limbes · la planche de l’île</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="d.css">
+  <style>
+    .planche { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr)); gap: .6rem; }
+    .planche figure { margin: 0; padding: .4rem .3rem .5rem; border: 1.5px solid var(--line); border-radius: .9rem; background: var(--card); text-align: center; }
+    .planche canvas { display: block; width: 100%; aspect-ratio: 1 / 1.1; }
+    .planche figcaption { font-size: .82rem; line-height: 1.25; color: var(--muted); }
+    .planche figcaption b { display: block; color: var(--ink); font-size: .9rem; }
+    h2 { margin: 1.6rem 0 .5rem; font-size: 1.1rem; }
+    .iles { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .6rem; }
+    .iles canvas { display: block; width: 100%; aspect-ratio: 1 / .9; border-radius: .8rem; }
+  </style>
+</head>
+<body>
+  <header class="head"><span class="brand">Limbes <small>la planche de l’île</small></span><a class="quiet" href="./">l’île</a></header>
+  <main id="app">
+    <p class="step">Maquette D</p>
+    <h1>Tout ce qui peut pousser</h1>
+    <p class="hint">Chaque chose, par famille et par sensation, puis les états. Et quelques îles inventées, pour l’archipel.</p>
+    <div id="planche" class="planche"></div>
+    <h2>Des îles inventées</h2>
+    <div id="iles" class="iles"></div>
+  </main>
+  <script type="module">
+    import { dessinerChose, dessinerIle, deriver, ileInventee, CLIMATS } from './ile.js';
+    import { ESPECES, NOMS, FAMILLES } from './grammaire.js';
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const fig = (titre, sous, draw) => {
+      const f = document.createElement('figure'), c = document.createElement('canvas'), cap = document.createElement('figcaption');
+      f.append(c, cap); cap.innerHTML = `<b>${titre}</b>${sous}`;
+      document.getElementById('planche').append(f);
+      const S = 120; c.width = S * dpr; c.height = S * 1.1 * dpr; const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+      x.fillStyle = '#dff0c9'; x.beginPath(); x.moveTo(60, 92 - 22); x.lineTo(104, 92); x.lineTo(60, 92 + 22); x.lineTo(16, 92); x.closePath(); x.fill();
+      draw(x, 60, 92, 44);
+    };
+    const base = (famille, espece, stade = 1, etats = {}, quad = 'N') => ({ key: espece, famille, espece, stade, quad, etats: { ferme: false, lueur: false, boucle: false, double: false, pluie: false, mousse: false, fissure: false, caillou: false, ...etats } });
+    const Q = { AD: 'agité, douloureux', ED: 'éteint, douloureux', AS: 'agité, supportable', ES: 'éteint, supportable', N: 'sans mot' };
+    for (const [famille, esp] of Object.entries(ESPECES)) {
+      for (const q of ['AD', 'ED', 'AS', 'ES', 'N']) {
+        const e = esp[q];
+        if (q === 'N' && esp.N === esp.AS && famille !== 'meteo') continue;
+        fig(NOMS[e][0], `${FAMILLES[famille].de}<br>${Q[q]}`, (x, X, Y, u) => dessinerChose(x, X, Y, u, base(famille, e, 1, {}, q), 1, { m: null, i: 1, j: 1, eau: CLIMATS.N.eau }));
+      }
+    }
+    const S = (t, s, famille, espece, stade, etats = {}, quad = 'N') => fig(t, s, (x, X, Y, u) => dessinerChose(x, X, Y, u, base(famille, espece, stade, etats, quad), 1, { m: null, i: 1, j: 1, eau: CLIMATS.N.eau }));
+    S('jeune', 'récent', 'arbre', 'feuillu', 0); S('vieux', 'depuis longtemps', 'arbre', 'feuillu', 2); S('un bosquet', 'redit trois fois', 'arbre', 'feuillu', 3);
+    S('un caillou', 'récent', 'pierre', 'pierre', 0); S('un rocher', 'depuis longtemps', 'pierre', 'pierre', 2); S('une pierre levée', 'redit trois fois', 'pierre', 'pierre', 3);
+    S('une cabane', 'récent', 'maison', 'maison', 0); S('avec une annexe', 'redit', 'maison', 'maison', 2); S('un hameau', 'redit trois fois', 'maison', 'maison', 3);
+    S('un moulin', 'le champ, redit', 'culture', 'champ', 2);
+    S('fermé', 'jamais dit : un creux', 'arbre', 'feuillu', 1, { ferme: true }); S('fermée', 'jamais dit : enterrée', 'pierre', 'pierre', 1, { ferme: true }); S('fermée', 'jamais dit : porte close', 'maison', 'maison', 1, { ferme: true }); S('fermé', 'jamais dit : couvert', 'culture', 'puits', 1, { ferme: true }); S('en friche', 'jamais dit', 'culture', 'champ', 1, { ferme: true });
+    S('une lueur', 'il y a un texte', 'arbre', 'feuillu', 1, { lueur: true }); S('une lueur', 'il y a un texte', 'maison', 'maison', 1, { lueur: true }); S('une lueur', 'il y a un texte', 'pierre', 'galet', 1, { lueur: true });
+    S('en boucle', 'un sentier usé', 'pierre', 'pierre', 1, { boucle: true }); S('plus d’une fois', 'en deux', 'arbre', 'pin', 1, { double: true }); S('ça continue', 'il pleut dessus', 'arbre', 'nu', 1, { pluie: true });
+    S('regret', 'la mousse reprend', 'pierre', 'moussue', 1, { mousse: true }); S('jamais réparé', 'fendue', 'pierre', 'sombre', 1, { fissure: true }); S('responsable', 'un caillou au pied', 'arbre', 'nu', 1, { caillou: true });
+    S('les volets ouverts', 'la maison aux volets, quand ça va mieux', 'maison', 'volets', 1, {}, 'ES');
+    // des îles
+    const iles = document.getElementById('iles');
+    for (let k = 0; k < 6; k++) {
+      const c = document.createElement('canvas'), W = 220, H = 200; c.width = W * dpr; c.height = H * dpr; iles.append(c);
+      const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const ile = ileInventee(1000 + k * 37, ['AD', 'ED', 'AS', 'ES', 'ED', 'N'][k]);
+      if (k === 5) { ile.depots = [
+        { id: 1, quad: 'ED', texte: true, answers: { situ: ['mal', 'longtemps', 'jamais'], mots: ['peur', 'honte'], sujets: ['s5', 's11'], fait: [], subi: ['slong'] } },
+        { id: 2, quad: 'ED', texte: false, answers: { situ: ['regret', 'boucle'], mots: ['culpa'], sujets: ['s0', 's4'], fait: ['frep'], subi: [] } },
+        { id: 3, quad: 'AS', texte: true, answers: { situ: ['recent'], mots: ['espoir'], sujets: ['s7', 's14'], fait: [], subi: [] } },
+        { id: 4, quad: 'ED', texte: false, answers: { situ: [], mots: ['tristesse'], sujets: [], fait: [], subi: [] } },
+        { id: 5, quad: 'ES', texte: false, answers: { situ: ['danger'], mots: ['calme'], sujets: ['s12', 's9'], fait: [], subi: [] } },
+        { id: 6, quad: 'AS', texte: true, answers: { situ: [], mots: ['espoir'], sujets: ['s7', 's5'], fait: [], subi: [] } },
+      ]; }
+      const d = deriver(ile);
+      const draw = T => { dessinerIle(x, W, H, d, {}, T); };
+      draw(0);
+      if (k === 5) { const loop = () => { draw(performance.now() / 1000); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+    }
+  </script>
+</body>
+</html>
