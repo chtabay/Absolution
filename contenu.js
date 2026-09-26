@@ -1,4 +1,4 @@
-// Limbes : le contenu. Les cases, les sujets, les mots-clés d’alerte, les numéros.
+// L’archipel : le contenu. Les cases, les sujets, les mots-clés d’alerte, les numéros.
 // Sujets : [libellé, poids moral, poids relationnel, poids projet].
 
 export const SUBJECTS = [

@@ -1,4 +1,4 @@
-// Limbes : les outils partagés. Des nombres tirés d’une graine, stables, et le mélange des couleurs.
+// L’archipel : les outils partagés. Des nombres tirés d’une graine, stables, et le mélange des couleurs.
 
 export const rng = seed => { let s = Math.abs(Math.floor(seed)) % 2147483647 || 7; return () => { s = (s * 16807) % 2147483647; return s / 2147483647; }; };
 export const hash = str => { let h = 2166136261; for (const c of String(str)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return ((h >>> 0) % 100003) / 100003; }; // un nombre stable entre 0 et 1

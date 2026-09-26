@@ -1,30 +1,103 @@
-# Limbes
+# L’archipel
 
-Un endroit où l’on peut tout déposer, sans jugement. On coche quelques cases, on écrit si on veut, et une île en 3D pousse avec ce qu’on dépose. Quand on veut, on la met dans un archipel, sans son nom.
+Un endroit où l’on peut tout déposer, sans jugement. On coche quelques cases, on écrit si on veut, et une île en 3D pousse avec ce qu’on dépose. Quand on veut, on la pose dans l’archipel, sans son nom, parmi les îles des autres.
 
-**→ https://chtabay.github.io/Absolution/limbes/**
+**→ https://chtabay.github.io/Absolution/**
 
-Tout est dans [`limbes/`](limbes/) : le parcours, la grammaire qui fait pousser l’île, le rendu en 3D (three.js embarqué) et l’archipel. Voir [`limbes/README.md`](limbes/README.md).
+## Le parcours
+
+1. **Les questions.** Quelques cases à cocher. En haut, un îlot montre en direct ce que les cases feraient pousser.
+2. **Par où aller ?** Parler à quelqu’un, écrire, le dire en trois lignes, juste le poser, ou voir son île.
+3. **La page.** Des débuts de phrases tirés des cases. Le texte est lu sur le téléphone, pour proposer des sujets. Si des mots inquiètent, des numéros d’écoute s’affichent.
+4. **Terminer.** Poser sur l’île, avec le texte gardé sur le téléphone si on veut, ou brûler.
+5. **L’île.** Ce qui vient de pousser, avec une phrase. On la fait tourner du doigt. Toucher une chose dit ce qu’elle est, d’après quelles cases, et depuis quand.
+6. **Changer d’île.** Celle-ci reste sur le téléphone et se revoit. Elle peut rejoindre l’archipel sans nom : les autres verraient « une île avec deux arbres nus, une pierre et une maison », rien d’autre.
+7. **L’archipel.** Une mer au soir, avec des voiliers. Les îles des autres y arrivent depuis l’horizon, placées par sensation. Toucher une île fait s’en approcher.
+
+## La grammaire : quatre axes lus dans les cases
+
+Une confession ne se réduit pas à quelques nombres. Elle garde toutes ses cases, dans un « dépôt », et l’île est recalculée à partir des dépôts. La grammaire est dans `grammaire.js`. Elle lit les cases. Le texte est lu par `lexique.js`, sur l’appareil seulement, pour **proposer** des sujets et une sensation : rien ne pousse du texte sans que la personne l’ait confirmé. Sur l’île, le texte ne fait qu’une lueur.
+
+| Axe | D’après | Ce que ça fait |
+| --- | --- | --- |
+| **1. La place** (d’où ça vient) | le sujet coché, déplacé par « on m’a fait du mal » ou la question de plus | **la famille** : *reçu*, un arbre, dans la forêt ; *commis ou voulu*, une pierre, sur la colline ; *entre vous*, une construction, dans le village ; *soi et ce qui vient*, une culture, dans les champs ; *une sensation sans sujet*, le temps qu’il fait |
+| **2. La sensation** (comment c’est ressenti) | le quadrant des mots : agité ou éteint, douloureux ou supportable | **l’espèce** : voir le tableau ci-dessous |
+| **3. Le temps** (depuis quand) | récent, depuis longtemps, il y a longtemps ; plus d’une fois, ça continue | **la taille** : jeune, adulte, vieux ; un sujet redit grandit d’un cran (bosquet, pierre levée, hameau, moulin) ; « plus d’une fois » met en deux |
+| **4. Le silence** (qui le sait) | jamais dit, personne ne le sait, cette personne ne le sait pas, jamais parlé ; et la présence d’un texte | **l’état** : fermé (un creux, enterrée, porte close, couvert, en friche) ; une lueur s’il y a un texte, jamais son contenu |
+
+Les espèces, famille par sensation :
+
+| | agité, douloureux | éteint, douloureux | agité, supportable | éteint, supportable | sans mot |
+| --- | --- | --- | --- | --- | --- |
+| **arbre** (reçu) | pin | arbre nu | arbre | arbre en fleurs | arbre |
+| **pierre** (commis, voulu) | pierre sombre | pierre moussue | cairn | galet | pierre |
+| **construction** (entre vous) | clôture | maison aux volets fermés | pont | banc | maison |
+| **culture** (soi, ce qui vient) | feu | puits | champ | barque | champ |
+| **temps** (une sensation) | nuage d’orage | nuage de pluie | fleurs | étang | — |
+
+Les autres cases : *ça tourne en boucle*, un sentier usé autour ; *ça continue*, il pleut dessus ; *je regrette*, la mousse et des fleurs reprennent la pierre ; *jamais réparé*, la pierre est fendue ; *je me sens responsable*, un caillou au pied de l’arbre ; *danger* ou *peur de cette personne*, un phare sur la rive, qu’on touche pour parler à quelqu’un ; *pas bien du tout*, le ciel se couvre.
+
+## La composition : un dépôt complète l’île
+
+- **Un sujet par graine.** Une confession qui parle de trois sujets fait pousser trois choses. Sans sujet, la situation suffit : « on m’a fait du mal », un arbre ; « je regrette », une pierre. Sinon la sensation laisse un temps qu’il fait. Rien du tout : un caillou posé, qui porte quand même ses états.
+- **Chaque quadrant coché laisse sa trace.** Le quadrant principal donne l’espèce. Les autres ajoutent un temps qu’il fait : « tristesse et espoir », une maison aux volets fermés et des fleurs.
+- **Le texte propose, la personne confirme.** Les sujets repérés dans le texte apparaissent en transparence dans les graines, puis à cocher ou non avant de poser. Le texte donne aussi la sensation quand aucun mot n’est coché.
+- **Un sujet redit fait grandir**, jamais une deuxième chose. Les arbres et les pierres suivent la sensation du jour. Une construction ou une culture garde son espèce.
+- **Le climat** de l’île suit la dernière confession : grand jour, jour ordinaire, soir doux, crépuscule, brume du matin.
+- **Le placement** est par quartiers : la forêt, la colline de pierres, le village, les champs ; les barques à la rive, les cailloux sur la plage. Les positions ne bougent pas quand on ajoute.
+
+## Les paysages et les formes
+
+La personne choisit le **paysage** en commençant une île, avec un aperçu en 3D : la prairie, la forêt d’automne, l’île tropicale, l’île enneigée, la lande. Le paysage change les couleurs du sol, l’eau, les essences, les maisons, les cultures et le petit décor. Chaque chose a aussi plusieurs **formes**, tirées d’un nombre stable pour chaque île. Ni le paysage ni les formes ne disent quelque chose : ils rendent chaque île différente.
+
+## Le rendu en 3D
+
+- **Le relief.** Un sol lissé à partir de la carte, à facettes, coloré selon la hauteur et la pente : plage, herbe, roche, neige. La ligne d’eau coupe les triangles, et le haut-fond est un dégradé qui rejoint le fond marin.
+- **La mer.** Transparente, claire près de l’île, bleue au large. Elle garde son bleu sous les lumières du soir.
+- **La lumière.** Un soleil aux ombres douces, une lumière du ciel et une brume, réglés pour chaque climat.
+- **Le mouvement.** L’île tourne du doigt, et seule quand on la laisse. Des nuages passent, des oiseaux tournent, le phare balaie, les moulins tournent, les barques tanguent.
+- **L’archipel.** Cadré pour un téléphone tenu droit. Il n’a pas d’ombres, pour rester léger : environ 126 000 triangles pour 28 îles, contre 30 000 pour une île seule.
+
+Sans WebGL, la page reste utilisable : l’île et l’archipel ne s’affichent pas, et ce qui a poussé reste écrit en mots.
+
+## Ce qui n’existe pas encore
+
+- **Les îles des autres sont inventées**, ainsi que leurs arrivées : des dépôts au hasard passés par la même grammaire. Un archipel partagé demande un serveur.
+- **Rien ne part.** Ton île, tes îles d’avant et les textes gardés restent sur ce téléphone, sans chiffrement.
+- Ce qui serait transmis à l’archipel est déjà délimité : des comptes par espèce, une sensation moyenne, le paysage. Jamais un texte, une date ou une case.
 
 ## Confidentialité
 
 - Site 100 % statique : pas de serveur, pas de cookie, pas de traceur, aucune requête externe. La police et la bibliothèque 3D sont dans le dépôt.
 - Ce qu’on dépose reste sur le téléphone. Le texte y est lu, pour proposer des sujets, et n’en sort jamais.
-- Pour l’instant, les îles des autres dans l’archipel sont inventées : rien ne part.
 
-## Fichiers
+## Les fichiers
 
 | Fichier | Rôle |
 | --- | --- |
-| `limbes/` | L’application (voir son README) |
+| `index.html` | La page |
+| `style.css` | Le style |
+| `app.js` | Les écrans, les feuilles, les gestes, le stockage local |
+| `contenu.js` | Les cases, les sujets et leurs poids, les mots-clés d’alerte, les numéros |
+| `grammaire.js` | Les familles par sujet, les espèces, les états, la composition, les phrases |
+| `lexique.js` | Les mots qui font proposer un sujet ou une sensation, lus sur l’appareil |
+| `biomes.js` | Les paysages : couleurs, essences, maisons, cultures, décor |
+| `ile.js` | La carte, les quartiers, l’île recalculée depuis ses dépôts, les îles inventées |
+| `monde.js` | Le relief, la mer, le ciel, la lumière, la caméra, l’île, l’archipel, l’îlot, les aperçus |
+| `modeles.js` | Les choses en 3D, leurs formes, leurs états, le petit décor |
+| `outils.js` | Les nombres stables et le mélange des couleurs |
+| `vendor/` | three.js 0.186, réduit aux pièces utilisées (licence MIT) |
 | `fonts/` | Nunito (licence SIL OFL 1.1) |
-| `index.html` | Ouvre Limbes depuis la racine du site |
-| `404.html` | Page introuvable ; renvoie les anciennes adresses des maquettes vers `limbes/` |
+| `404.html` | Page introuvable ; les anciennes adresses des maquettes et de `limbes/` mènent à l’accueil |
 | `.nojekyll` | Sert les fichiers tels quels sur GitHub Pages |
+
+Le stockage local utilise le préfixe `archipel:`. Au premier passage, l’île gardée sous un ancien nom du projet est reprise, sans rien effacer.
+
+Chaque fichier est appelé avec un numéro de version, comme `?v=1`. Après une modification, on augmente le numéro de ce fichier là où il est appelé, pour qu’un téléphone ne mélange pas deux versions en cache.
 
 Tester en local, depuis la racine du dépôt :
 
 ```sh
 python3 -m http.server
-# puis http://localhost:8000/limbes/
+# puis http://localhost:8000/
 ```

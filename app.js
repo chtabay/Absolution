@@ -1,4 +1,4 @@
-// Limbes : les cases, les graines, l’île, l’archipel, en 3D.
+// L’archipel : les cases, les graines, l’île qui pousse, et l’archipel où la poser, en 3D.
 // Tout reste sur cet appareil ; rien ne part. Pour l’instant, les îles des autres sont inventées.
 
 import { SUBJECTS, QUESTIONS, KEYS, BASE, LEX, HUMANS, MOCK } from './contenu.js?v=1';
@@ -34,16 +34,17 @@ const signals = () => {
   const items = KEYS.flatMap(k => checked(k));
   return { strong: items.some(it => it.strong), soft: items.some(it => it.soft), other: has('situ', 'mal') || has('sujets', 's11') || state.answers.subi.size > 0 };
 };
-const PREFIXE = 'limbes:';
+const PREFIXE = 'archipel:';
 const store = {
   get(k, def) { try { return JSON.parse(localStorage.getItem(PREFIXE + k) || 'null') ?? def; } catch { return def; } },
   set(k, v) { try { localStorage.setItem(PREFIXE + k, JSON.stringify(v)); } catch { /* stockage indisponible */ } },
   del(k) { try { localStorage.removeItem(PREFIXE + k); } catch { /* rien à effacer */ } },
 };
-(function reprendre() { // une seule fois : l’île, les îles d’avant et le brouillon laissés par les maquettes qui ont précédé
+(function reprendre() { // une seule fois : l’île, les îles d’avant et le brouillon gardés sous les noms d’avant, du plus récent au plus ancien
   try {
     if (localStorage.getItem(`${PREFIXE}ile`) !== null) return;
-    for (const k of ['ile', 'iles', 'draft']) { const v = localStorage.getItem(`limbesD.${k}`); if (v !== null) localStorage.setItem(PREFIXE + k, v); }
+    const avant = ['limbes:', 'limbesD.'].find(p => localStorage.getItem(`${p}ile`) !== null);
+    if (avant) for (const k of ['ile', 'iles', 'draft']) { const v = localStorage.getItem(avant + k); if (v !== null) localStorage.setItem(PREFIXE + k, v); }
   } catch { /* stockage indisponible */ }
 })();
 
@@ -681,4 +682,4 @@ addEventListener('popstate', e => render(e.state?.screen || 'q:situ'));
 history.replaceState({ screen: 'q:situ' }, '', '');
 render('q:situ');
 requestAnimationFrame(frame);
-window.limbes = { state, get ile() { return ile; }, get iles() { return iles; }, get courant() { return courant; }, get preview() { return preview; }, arch, vie, vue, ilot }; // pour les tests
+window.archipel = { state, get ile() { return ile; }, get iles() { return iles; }, get courant() { return courant; }, get preview() { return preview; }, arch, vie, vue, ilot }; // pour les tests

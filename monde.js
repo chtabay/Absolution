@@ -1,4 +1,4 @@
-// Limbes : le monde en 3D. Le sol en relief, la mer et ses fonds, le ciel et la lumière du climat,
+// L’archipel : le monde en 3D. Le sol en relief, la mer et ses fonds, le ciel et la lumière du climat,
 // la caméra qu’on tourne au doigt, l’île, l’archipel, l’îlot des graines, les aperçus des paysages.
 // La carte et les dépôts viennent de ile.js : l’île est recalculée à partir de ses dépôts.
 
