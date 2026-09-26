@@ -2,7 +2,7 @@
 
 Un endroit où l’on peut tout déposer, sans jugement. On coche quelques cases, on écrit si on veut, et une île en 3D pousse avec ce qu’on dépose. Quand on veut, on la pose dans l’archipel, sans son nom, parmi les îles des autres.
 
-**→ https://chtabay.github.io/Absolution/**
+**→ https://chtabay.github.io/archipel/**
 
 ## Le parcours
 
