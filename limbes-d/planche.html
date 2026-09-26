@@ -5,13 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Limbes · la planche de l’île</title>
   <meta name="robots" content="noindex">
-  <link rel="stylesheet" href="d.css">
+  <link rel="stylesheet" href="d.css?v=11">
   <style>
-    .planche { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr)); gap: .6rem; }
-    .planche figure { margin: 0; padding: .4rem .3rem .5rem; border: 1.5px solid var(--line); border-radius: .9rem; background: var(--card); text-align: center; }
+    .choix { display: flex; flex-wrap: wrap; gap: .4rem; margin: .2rem 0 1rem; }
+    .choix button { padding: .4rem .8rem; border: 1.5px solid var(--line); border-radius: 999px; background: var(--card); color: var(--ink); font: 700 .92rem/1.2 var(--sans); cursor: pointer; }
+    .choix button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+    .planche { display: grid; grid-template-columns: repeat(auto-fill, minmax(6.6rem, 1fr)); gap: .5rem; }
+    .planche figure { margin: 0; padding: .35rem .25rem .45rem; border: 1.5px solid var(--line); border-radius: .9rem; background: var(--card); text-align: center; }
     .planche canvas { display: block; width: 100%; aspect-ratio: 1 / 1.1; }
-    .planche figcaption { font-size: .82rem; line-height: 1.25; color: var(--muted); }
-    .planche figcaption b { display: block; color: var(--ink); font-size: .9rem; }
+    .planche figcaption { font-size: .78rem; line-height: 1.25; color: var(--muted); }
+    .planche figcaption b { display: block; color: var(--ink); font-size: .86rem; }
+    .decor canvas { aspect-ratio: 1 / .7; }
     h2 { margin: 1.6rem 0 .5rem; font-size: 1.1rem; }
     .iles { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .6rem; }
     .iles canvas { display: block; width: 100%; aspect-ratio: 1 / .9; border-radius: .8rem; }
@@ -22,62 +26,74 @@
   <main id="app">
     <p class="step">Maquette D</p>
     <h1>Tout ce qui peut pousser</h1>
-    <p class="hint">Chaque chose, par famille et par sensation, puis les états. Et quelques îles inventées, pour l’archipel.</p>
-    <div id="planche" class="planche"></div>
-    <h2>Des îles inventées</h2>
+    <p class="hint">Choisis un paysage. Chaque chose y a plusieurs formes, qui ne disent rien de plus : elles rendent chaque île différente.</p>
+    <div id="choix" class="choix"></div>
+    <h2>Les choses, et leurs formes</h2>
+    <div id="choses" class="planche"></div>
+    <h2>Les tailles et les états</h2>
+    <div id="etats" class="planche"></div>
+    <h2>Le petit décor du sol</h2>
+    <div id="decor" class="planche decor"></div>
+    <h2>Des îles dans ce paysage</h2>
     <div id="iles" class="iles"></div>
   </main>
   <script type="module">
-    import { dessinerChose, dessinerIle, deriver, ileInventee, CLIMATS } from './ile.js';
-    import { ESPECES, NOMS, FAMILLES } from './grammaire.js';
-    const dpr = Math.min(devicePixelRatio || 1, 2);
-    const fig = (titre, sous, draw) => {
-      const f = document.createElement('figure'), c = document.createElement('canvas'), cap = document.createElement('figcaption');
-      f.append(c, cap); cap.innerHTML = `<b>${titre}</b>${sous}`;
-      document.getElementById('planche').append(f);
-      const S = 120; c.width = S * dpr; c.height = S * 1.1 * dpr; const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
-      x.fillStyle = '#dff0c9'; x.beginPath(); x.moveTo(60, 92 - 22); x.lineTo(104, 92); x.lineTo(60, 92 + 22); x.lineTo(16, 92); x.closePath(); x.fill();
-      draw(x, 60, 92, 44);
-    };
-    const base = (famille, espece, stade = 1, etats = {}, quad = 'N') => ({ key: espece, famille, espece, stade, quad, etats: { ferme: false, lueur: false, boucle: false, double: false, pluie: false, mousse: false, fissure: false, caillou: false, ...etats } });
+    import { dessinerChose, dessinerDecor } from './sprites.js?v=11';
+    import { dessinerIle, deriver, ileInventee, vignette, CLIMATS, BIOMES, BIOME_IDS } from './ile.js?v=11';
+    import { ESPECES, NOMS, FAMILLES } from './grammaire.js?v=11';
+    const dpr = Math.min(devicePixelRatio || 1, 2), cap = s => s.charAt(0).toUpperCase() + s.slice(1);
     const Q = { AD: 'agité, douloureux', ED: 'éteint, douloureux', AS: 'agité, supportable', ES: 'éteint, supportable', N: 'sans mot' };
-    for (const [famille, esp] of Object.entries(ESPECES)) {
-      for (const q of ['AD', 'ED', 'AS', 'ES', 'N']) {
+    const base = (famille, espece, stade = 1, etats = {}, quad = 'N') => ({ key: espece, famille, espece, stade, quad, etats: { ferme: false, lueur: false, boucle: false, double: false, pluie: false, mousse: false, fissure: false, caillou: false, ...etats } });
+    let id = 'prairie';
+    const fig = (parent, titre, sous, draw, ratio = 1.1) => {
+      const f = document.createElement('figure'), c = document.createElement('canvas'), capt = document.createElement('figcaption');
+      f.append(c, capt); capt.innerHTML = `<b>${titre}</b>${sous}`; parent.append(f);
+      const S = 110; c.width = S * dpr; c.height = S * ratio * dpr; const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const B = BIOMES[id], Y0 = S * ratio * .8;
+      x.fillStyle = B.sol.herbe[0]; x.globalAlpha = .35; x.beginPath(); x.moveTo(S / 2, Y0 - 19); x.lineTo(S / 2 + 38, Y0); x.lineTo(S / 2, Y0 + 19); x.lineTo(S / 2 - 38, Y0); x.closePath(); x.fill(); x.globalAlpha = 1;
+      draw(x, S / 2, Y0, 40, B);
+    };
+    const chose = (parent, t, s, a, v) => fig(parent, t, s, (x, X, Y, u, B) => dessinerChose(x, X, Y, u, a, 1, { m: null, i: 1, j: 1, eau: B.eau || CLIMATS.N.eau, B, v, terrain: 'herbe' }));
+    function rendre() {
+      for (const n of ['choses', 'etats', 'decor', 'iles']) document.getElementById(n).replaceChildren();
+      const choses = document.getElementById('choses');
+      for (const [famille, esp] of Object.entries(ESPECES)) for (const q of ['AD', 'ED', 'AS', 'ES', 'N']) {
         const e = esp[q];
         if (!e || (q === 'N' && esp.N === esp.AS)) continue;
-        fig(NOMS[e][0], `${FAMILLES[famille].de}<br>${Q[q]}`, (x, X, Y, u) => dessinerChose(x, X, Y, u, base(famille, e, 1, {}, q), 1, { m: null, i: 1, j: 1, eau: CLIMATS.N.eau }));
+        const vs = famille === 'meteo' ? [.5] : [.1, .45, .8];
+        vs.forEach((v, k) => chose(choses, cap(NOMS[e][0].replace(/^(un|une|des) /, '')), `${k ? `forme ${k + 1}` : FAMILLES[famille].de}<br>${Q[q]}`, base(famille, e, 1, {}, q), v));
       }
-    }
-    const S = (t, s, famille, espece, stade, etats = {}, quad = 'N') => fig(t, s, (x, X, Y, u) => dessinerChose(x, X, Y, u, base(famille, espece, stade, etats, quad), 1, { m: null, i: 1, j: 1, eau: CLIMATS.N.eau }));
-    S('un caillou', 'rien coché : il porte quand même les états', 'caillou', 'caillou', 1);
-    S('jeune', 'récent', 'arbre', 'feuillu', 0); S('vieux', 'depuis longtemps', 'arbre', 'feuillu', 2); S('un bosquet', 'redit trois fois', 'arbre', 'feuillu', 3);
-    S('un caillou', 'récent', 'pierre', 'pierre', 0); S('un rocher', 'depuis longtemps', 'pierre', 'pierre', 2); S('une pierre levée', 'redit trois fois', 'pierre', 'pierre', 3);
-    S('une cabane', 'récent', 'maison', 'maison', 0); S('avec une annexe', 'redit', 'maison', 'maison', 2); S('un hameau', 'redit trois fois', 'maison', 'maison', 3);
-    S('un moulin', 'le champ, redit', 'culture', 'champ', 2);
-    S('fermé', 'jamais dit : un creux', 'arbre', 'feuillu', 1, { ferme: true }); S('fermée', 'jamais dit : enterrée', 'pierre', 'pierre', 1, { ferme: true }); S('fermée', 'jamais dit : porte close', 'maison', 'maison', 1, { ferme: true }); S('fermé', 'jamais dit : couvert', 'culture', 'puits', 1, { ferme: true }); S('en friche', 'jamais dit', 'culture', 'champ', 1, { ferme: true });
-    S('une lueur', 'il y a un texte', 'arbre', 'feuillu', 1, { lueur: true }); S('une lueur', 'il y a un texte', 'maison', 'maison', 1, { lueur: true }); S('une lueur', 'il y a un texte', 'pierre', 'galet', 1, { lueur: true });
-    S('en boucle', 'un sentier usé', 'pierre', 'pierre', 1, { boucle: true }); S('plus d’une fois', 'en deux', 'arbre', 'pin', 1, { double: true }); S('ça continue', 'il pleut dessus', 'arbre', 'nu', 1, { pluie: true });
-    S('regret', 'la mousse reprend', 'pierre', 'moussue', 1, { mousse: true }); S('jamais réparé', 'fendue', 'pierre', 'sombre', 1, { fissure: true }); S('responsable', 'un caillou au pied', 'arbre', 'nu', 1, { caillou: true });
-    S('les volets ouverts', 'la maison aux volets, quand ça va mieux', 'maison', 'volets', 1, {}, 'ES');
-    // des îles
-    const iles = document.getElementById('iles');
-    for (let k = 0; k < 6; k++) {
-      const c = document.createElement('canvas'), W = 220, H = 200; c.width = W * dpr; c.height = H * dpr; iles.append(c);
+      chose(choses, 'Caillou', 'rien coché', base('caillou', 'caillou', 1), .3);
+      const etats = document.getElementById('etats'), S = (t, s, f, e, st, et = {}, q = 'N', v = .2) => chose(etats, t, s, base(f, e, st, et, q), v);
+      S('jeune', 'récent', 'arbre', 'feuillu', 0); S('vieux', 'depuis longtemps', 'arbre', 'feuillu', 2); S('un bosquet', 'redit trois fois', 'arbre', 'feuillu', 3);
+      S('un rocher', 'depuis longtemps', 'pierre', 'pierre', 2); S('une pierre levée', 'redit trois fois', 'pierre', 'pierre', 3);
+      S('une annexe', 'redit', 'maison', 'maison', 2); S('un hameau', 'redit trois fois', 'maison', 'maison', 3); S('un moulin', 'le champ, redit', 'culture', 'champ', 2);
+      S('fermé', 'jamais dit : un creux', 'arbre', 'feuillu', 1, { ferme: true }); S('fermée', 'jamais dit : un tertre', 'pierre', 'pierre', 1, { ferme: true }); S('fermée', 'jamais dit : porte close', 'maison', 'maison', 1, { ferme: true }); S('en friche', 'jamais dit', 'culture', 'champ', 1, { ferme: true });
+      S('une lueur', 'il y a un texte', 'maison', 'maison', 1, { lueur: true }); S('une lueur', 'il y a un texte', 'arbre', 'feuillu', 1, { lueur: true }); S('en boucle', 'un sentier usé', 'pierre', 'pierre', 1, { boucle: true });
+      S('plus d’une fois', 'en deux', 'arbre', 'pin', 1, { double: true }); S('ça continue', 'il pleut dessus', 'arbre', 'nu', 1, { pluie: true }); S('regret', 'la mousse reprend', 'pierre', 'moussue', 1, { mousse: true });
+      S('jamais réparé', 'fendue', 'pierre', 'sombre', 1, { fissure: true }); S('responsable', 'un caillou au pied', 'arbre', 'nu', 1, { caillou: true });
+      const decor = document.getElementById('decor'), vus = new Set();
+      for (const [type, table] of Object.entries(BIOMES[id].decor)) for (const [kind] of table) {
+        if (vus.has(kind)) continue; vus.add(kind);
+        fig(decor, kind, type, (x, X, Y, u, B) => { for (const [dx, dy] of [[-18, -2], [0, 6], [18, -1]]) dessinerDecor(x, X + dx, Y + dy - 10, 150, kind, B, (dx + 30) / 60); }, .7);
+      }
+      const iles = document.getElementById('iles');
+      [['AS', 1], ['ED', 2], ['ES', 3], ['AD', 4], ['N', 5]].forEach(([q, k]) => {
+        const c = document.createElement('canvas'), W = 220, H = 200; c.width = W * dpr; c.height = H * dpr; iles.append(c);
+        const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const ile = ileInventee(2000 + k * 53, q === 'N' ? 'AS' : q); ile.biome = id;
+        const d = deriver(ile); if (q === 'N') d.climat = 'N';
+        dessinerIle(x, W, H, d, {}, 1);
+      });
+      const c = document.createElement('canvas'), W = 220, H = 200; c.width = W * dpr; c.height = H * dpr; iles.append(c); // la même, au ras de l’eau, comme dans l’archipel
       const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const ile = ileInventee(1000 + k * 37, ['AD', 'ED', 'AS', 'ES', 'ED', 'N'][k]);
-      if (k === 5) { ile.depots = [
-        { id: 1, quad: 'ED', texte: true, answers: { situ: ['mal', 'longtemps', 'jamais'], mots: ['peur', 'honte'], sujets: ['s5', 's11'], fait: [], subi: ['slong'] } },
-        { id: 2, quad: 'ED', texte: false, answers: { situ: ['regret', 'boucle'], mots: ['culpa'], sujets: ['s0', 's4'], fait: ['frep'], subi: [] } },
-        { id: 3, quad: 'AS', texte: true, answers: { situ: ['recent'], mots: ['espoir'], sujets: ['s7', 's14'], fait: [], subi: [] } },
-        { id: 4, quad: 'ED', texte: false, answers: { situ: [], mots: ['tristesse'], sujets: [], fait: [], subi: [] } },
-        { id: 5, quad: 'ES', texte: false, answers: { situ: ['danger'], mots: ['calme'], sujets: ['s12', 's9'], fait: [], subi: [] } },
-        { id: 6, quad: 'AS', texte: true, answers: { situ: [], mots: ['espoir'], sujets: ['s7', 's5'], fait: [], subi: [] } },
-      ]; }
-      const d = deriver(ile);
-      const draw = T => { dessinerIle(x, W, H, d, {}, T); };
-      draw(0);
-      if (k === 5) { const loop = () => { draw(performance.now() / 1000); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+      const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#72d2e6'); g.addColorStop(1, '#2f98b8'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+      const ile = ileInventee(2000 + 1 * 53, 'AS'); ile.biome = id; ile.id = `planche:${id}`;
+      x.drawImage(vignette(ile, deriver(ile), 200), 10, 10, 200, 180);
     }
+    const choix = document.getElementById('choix');
+    for (const b of BIOME_IDS) { const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = cap(BIOMES[b].nom); btn.setAttribute('aria-pressed', String(b === id)); btn.addEventListener('click', () => { id = b; for (const n of choix.children) n.setAttribute('aria-pressed', String(n === btn)); rendre(); }); choix.append(btn); }
+    rendre();
   </script>
 </body>
 </html>

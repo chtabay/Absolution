@@ -417,6 +417,13 @@ main { padding-top: .6rem; }
 .loupe { flex: none; width: 7.5rem; height: 6.75rem; border-radius: .8rem; background: #5fc2df; box-shadow: 0 .2rem .8rem rgba(43, 39, 35, .15); }
 .loupe-row .ile-caption { margin-top: 0; }
 .propositions { display: grid; gap: .1rem; margin: 0 0 .6rem; }
+.paysages { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.4rem, 1fr)); gap: .5rem; margin: .4rem 0 .8rem; }
+.paysage { display: grid; gap: .2rem; padding: .4rem .4rem .55rem; border: 1.5px solid var(--line); border-radius: .9rem; background: var(--card); color: var(--ink); font: inherit; text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.paysage canvas { display: block; width: 100%; aspect-ratio: 1 / .9; border-radius: .6rem; background: #3fb0cc; }
+.paysage b { font-size: .95rem; font-weight: 800; line-height: 1.2; }
+.paysage small { color: var(--muted); font-size: .8rem; line-height: 1.25; }
+.paysage[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.paysage:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .propositions .check { margin: .15rem 0; }
 .nav.wrap { flex-wrap: wrap; gap: .3rem .9rem; }
 .legende { padding-left: 1.1rem; }

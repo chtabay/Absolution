@@ -2,10 +2,10 @@
 // Tout reste sur cet appareil ; rien ne part. Les îles des autres sont inventées.
 // L’île ne lit jamais le texte : elle pousse d’après les cases.
 
-import { SUBJECTS, QUESTIONS, KEYS, BASE, LEX, HUMANS, MOCK } from './contenu.js';
-import { graines, quadDe, nomDe, phrasesDe, casesDe, sujetLabel, listeDe, listeGraines, FAMILLES, ESPECES, NOMS } from './grammaire.js';
-import { nouvelleIle, deriver, resume, dessinerIle, dessinerGraines, archipelInvente, ileInventee, vignette } from './ile.js';
-import { lire } from './lexique.js';
+import { SUBJECTS, QUESTIONS, KEYS, BASE, LEX, HUMANS, MOCK } from './contenu.js?v=11';
+import { graines, quadDe, nomDe, phrasesDe, casesDe, sujetLabel, listeDe, listeGraines, FAMILLES, ESPECES, NOMS } from './grammaire.js?v=11';
+import { nouvelleIle, deriver, resume, dessinerIle, dessinerGraines, archipelInvente, ileInventee, vignette, BIOMES, BIOME_IDS, biomeDe } from './ile.js?v=11';
+import { lire } from './lexique.js?v=11';
 
 const $ = s => document.querySelector(s);
 const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
@@ -97,11 +97,11 @@ function drawCompanion(T) {
     const p = Math.min(1, (performance.now() - burnAnim.start) / 1300);
     ex.clearRect(0, 0, EW, EH);
     ex.save(); ex.globalAlpha = 1 - p; ex.translate(0, -p * 30);
-    dessinerGraines(ex, EW, EH, preview, T, vie);
+    dessinerGraines(ex, EW, EH, preview, T, vie, { B: biomeDe(ile.biome), seed: ile.seed });
     ex.restore();
     return;
   }
-  dessinerGraines(ex, EW, EH, preview, T, vie);
+  dessinerGraines(ex, EW, EH, preview, T, vie, { B: biomeDe(ile.biome), seed: ile.seed });
 }
 
 /* ───────── L’île, à l’écran ───────── */
@@ -122,6 +122,7 @@ function renderIle() {
   if (mine) {
     nav.append(quiet('l’archipel', () => go('archipel')), tourner);
     if (ile.depots.length) nav.append(quiet('changer d’île', changerSheet));
+    else nav.append(quiet('choisir le paysage', paysageSheet));
     if (iles.length) nav.append(quiet('tes îles d’avant', ilesSheet));
     nav.append(el('span', { className: 'spacer' }), quiet('recommencer', () => { clearDraft(); go('q:situ'); }));
   } else nav.append(tourner, el('span', { className: 'spacer' }), quiet('revenir à ton île', () => { regard = null; go('ile'); }));
@@ -169,7 +170,7 @@ function updateIleLine() {
   const line = $('#ile-line');
   if (!line) return;
   const d = scene.d || courant, n = d.assets.length, k = d.ile.depots.length;
-  line.textContent = n ? `${n} chose${n > 1 ? 's' : ''} · ${k} dépôt${k > 1 ? 's' : ''}${d.ile.nee ? ` · depuis le ${jour(d.ile.nee)}` : ''}${d.ile.envoyee ? ' · dans l’archipel' : ''}` : `Rien encore${d.ile.nee ? ` · île commencée le ${jour(d.ile.nee)}` : ''}`;
+  line.textContent = `${cap(biomeDe(d.ile.biome).nom)} · ` + (n ? `${n} chose${n > 1 ? 's' : ''} · ${k} dépôt${k > 1 ? 's' : ''}${d.ile.nee ? ` · depuis le ${jour(d.ile.nee)}` : ''}${d.ile.envoyee ? ' · dans l’archipel' : ''}` : `Rien encore${d.ile.nee ? ` · île commencée le ${jour(d.ile.nee)}` : ''}`);
 }
 
 function legende() {
@@ -178,6 +179,7 @@ function legende() {
   ul.append(el('li', {}, el('b', { textContent: 'D’où ça vient, la famille. ' }), ...Object.values(FAMILLES).map(f => `${f.de} → ${f.nom}, ${f.zone}. `)));
   ul.append(el('li', {}, el('b', { textContent: 'Comment c’est ressenti, l’espèce. ' }), ...Object.entries(Q).map(([q, t]) => `${cap(t)}${NB}: ${Object.keys(ESPECES).map(f => NOMS[ESPECES[f][q]][0].replace(/^(un|une|des) /, '')).join(', ')}. `)));
   ul.append(el('li', {}, el('b', { textContent: 'Depuis quand, la taille. ' }), 'Récent, c’est petit ; depuis longtemps, c’est grand. Un sujet redit fait grandir la même chose, jamais une deuxième. Un arbre nu peut se couvrir de feuilles.'));
+  ul.append(el('li', {}, el('b', { textContent: 'Le paysage et les variantes. ' }), 'Tu choisis le paysage en commençant une île : la prairie, la forêt d’automne, l’île tropicale, l’île enneigée ou la lande. Il change les couleurs du sol, les essences, les maisons, les cultures et le petit décor. Chaque chose a aussi plusieurs formes. Ni le paysage ni les formes ne disent quelque chose : ils rendent chaque île différente.'));
   ul.append(el('li', {}, el('b', { textContent: 'Qui le sait, l’état. ' }), 'Jamais dit, c’est fermé. Un texte, c’est une lueur, jamais son contenu. En boucle, un sentier usé. Plus d’une fois, en deux. Ça continue, il pleut dessus. Regret, la mousse reprend la pierre. Jamais réparé, elle est fendue. Un danger, c’est un phare, pour parler à quelqu’un.'));
   ul.append(el('li', {}, el('b', { textContent: 'Ton texte. ' }), 'Il est lu ici, sur ce téléphone, jamais ailleurs. S’il parle d’un sujet que tu n’as pas coché, il te le propose à la fin, et rien ne pousse sans ton accord. S’il n’y a aucun mot coché, il donne la sensation. Sur l’île, il fait une lueur.'));
   ul.append(el('li', {}, el('b', { textContent: 'Le temps qu’il fait. ' }), 'Le ciel de l’île suit ta dernière confession. Chaque sensation cochée en plus de la principale laisse un temps qu’il fait : un nuage d’orage, un nuage de pluie, des fleurs, un étang. Sans sujet, la situation suffit : on m’a fait du mal, un arbre ; je regrette, une pierre. Rien du tout : un caillou posé.'));
@@ -265,21 +267,36 @@ function drawArchipel(T) {
     if (it.depuis && it.born > 0) { const p = easeOut(Math.min(1, (T - it.born) / 4)); it.X = lerp(it.depuis[0], it.tx, p); it.Y = lerp(it.depuis[1], it.ty, p); if (p >= 1 && !it.arrivee) { it.arrivee = true; arch.blooms.push({ X: it.tx, Y: it.ty, born: T }); } }
     else { it.X = it.tx; it.Y = it.ty; }
   }
-  const ordre = [...arch.items].sort((p, q) => p.Y - q.Y);
+  for (let k = 0; k < 3; k++) { // des oiseaux, près de l’horizon
+    const bx = ((T * 9 * (reduced ? 0 : 1) + k * 140) % (W + 60)) - 30, by = hz * (.3 + k * .16) + Math.sin(T * .8 + k) * 3, fl = Math.sin(T * 7 * (reduced ? 0 : 1) + k * 2) * .35, s = 3.5 + k;
+    x.strokeStyle = 'rgba(70,60,70,.5)'; x.lineWidth = 1.1; x.beginPath(); x.moveTo(bx - s, by + fl * s); x.quadraticCurveTo(bx - s * .4, by - s * .3, bx, by); x.quadraticCurveTo(bx + s * .4, by - s * .3, bx + s, by + fl * s); x.stroke();
+  }
+  const bateaux = VOILES.map(([fy, vit, dec]) => { const Y = hz + (H - hz) * fy; return { bateau: true, Y, X: ((T * vit * (reduced ? 0 : 1) + dec) % (W + 80)) - 40 }; });
+  const ordre = [...arch.items, ...bateaux].sort((p, q) => p.Y - q.Y);
   arch.hits = [];
   for (const it of ordre) {
+    if (it.bateau) { voilier(x, it.X, it.Y, profondeur(it.Y), T); continue; }
     const sc = profondeur(it.Y), size = (it.mine ? 92 : 74) * sc, X = it.X + Math.sin(T * .12 + it.ph) * 3, Y = it.Y + Math.sin(T * .7 + it.ph) * 1.5;
     const d = it.d || (it.d = deriver(it.ile)), v = vignette(it.ile, d, 96);
-    if (it.mine) { const gl = x.createRadialGradient(X, Y + size * .25, 0, X, Y + size * .25, size * .8); gl.addColorStop(0, 'rgba(255,255,255,.5)'); gl.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gl; x.beginPath(); x.ellipse(X, Y + size * .25, size * .8, size * .4, 0, 0, Math.PI * 2); x.fill(); }
+    if (it.mine) { const gl = x.createRadialGradient(X, Y + size * .05, 0, X, Y + size * .05, size * .75); gl.addColorStop(0, 'rgba(255,255,255,.5)'); gl.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gl; x.beginPath(); x.ellipse(X, Y + size * .05, size * .75, size * .36, 0, 0, Math.PI * 2); x.fill(); }
     x.globalAlpha = (it.born > 0 ? Math.min(1, (T - it.born) / 1.2) : 1) * (.7 + .3 * sc);
     x.drawImage(v, X - size / 2, Y - size * .5, size, size * .9);
     x.globalAlpha = 1;
-    if (arch.sel === it) { x.strokeStyle = 'rgba(255,255,255,.95)'; x.lineWidth = 1.5; x.beginPath(); x.ellipse(X, Y + size * .3, size * .58, size * .24, 0, 0, Math.PI * 2); x.stroke(); }
+    if (arch.sel === it) { x.strokeStyle = 'rgba(255,255,255,.95)'; x.lineWidth = 1.5; x.beginPath(); x.ellipse(X, Y + size * .05, size * .52, size * .22, 0, 0, Math.PI * 2); x.stroke(); }
     if (it.mine) { x.fillStyle = 'rgba(255,255,255,.95)'; x.font = '800 10px Nunito, sans-serif'; x.textAlign = 'center'; x.shadowColor = 'rgba(0,40,60,.6)'; x.shadowBlur = 4; x.fillText(it.ile === ile ? 'la tienne' : `la tienne, ${mois(it.ile.nee).split(' ')[0]}`, X, Y - size * .5 - 4 + Math.sin(T * 1.5) * 1.5); x.shadowBlur = 0; }
     arch.hits.push({ it, X, Y, r: size * .5 });
   }
   arch.blooms = arch.blooms.filter(b => T - b.born < 1.8);
   for (const b of arch.blooms) { const age = T - b.born; x.strokeStyle = `rgba(255,255,255,${(1 - age / 1.8) * .8})`; x.lineWidth = 1.5; x.beginPath(); x.ellipse(b.X, b.Y + 10, 8 + age * 34, (8 + age * 34) * .42, 0, 0, Math.PI * 2); x.stroke(); }
+}
+
+const VOILES = [[.3, 6, 0], [.55, 8, 170], [.8, 10, 330]]; // [place sur la mer, vitesse, départ]
+function voilier(x, X, Y, s, T) {
+  const b = Math.sin(T * 1.4 + X * .05) * .8;
+  x.strokeStyle = 'rgba(255,255,255,.45)'; x.lineWidth = 1; x.beginPath(); x.moveTo(X - 9 * s, Y + 2.5 * s); x.lineTo(X - 26 * s, Y + 3.5 * s); x.stroke(); // le sillage
+  x.fillStyle = '#8a5a3c'; x.beginPath(); x.moveTo(X - 7 * s, Y + b); x.lineTo(X + 8 * s, Y + b); x.lineTo(X + 5 * s, Y + 3.5 * s + b); x.lineTo(X - 5 * s, Y + 3.5 * s + b); x.closePath(); x.fill();
+  x.fillStyle = '#fffaf0'; x.beginPath(); x.moveTo(X + .5 * s, Y - 1 * s + b); x.lineTo(X + .5 * s, Y - 16 * s + b); x.lineTo(X + 8.5 * s, Y - 1.5 * s + b); x.closePath(); x.fill();
+  x.fillStyle = '#eadcc4'; x.beginPath(); x.moveTo(X - .5 * s, Y - 2 * s + b); x.lineTo(X - .5 * s, Y - 12 * s + b); x.lineTo(X - 6.5 * s, Y - 2 * s + b); x.closePath(); x.fill();
 }
 
 function updateArchLine() {
@@ -321,7 +338,7 @@ function renderArchipel() {
     const dpr = Math.min(devicePixelRatio || 1, 2), lw = loupe.clientWidth || 120, lh = loupe.clientHeight || 108;
     loupe.hidden = false; loupe.width = lw * dpr; loupe.height = lh * dpr;
     const lx = loupe.getContext('2d'); lx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    lx.fillStyle = '#5fc2df'; lx.fillRect(0, 0, lw, lh);
+    const gg = lx.createLinearGradient(0, 0, 0, lh); gg.addColorStop(0, '#72d2e6'); gg.addColorStop(1, '#2f98b8'); lx.fillStyle = gg; lx.fillRect(0, 0, lw, lh);
     lx.drawImage(vignette(it.ile, d, 160), 0, 0, lw, lh);
     caption.textContent = it.mine ? `La tienne${it.ile === ile ? ', celle d’aujourd’hui' : `, celle de ${mois(it.ile.nee)}`}${NB}: ${listeDe(rs.comptes)}.` : `Une île avec ${listeDe(rs.comptes)}${rs.phare ? ', et un phare' : ''}. ${it.born > 0 ? 'Arrivée à l’instant.' : 'Là depuis un moment.'}`;
   });
@@ -596,6 +613,33 @@ function finishSheet() {
   openSheet(body);
 }
 
+const APERCU = [{ id: 1, quad: 'N', texte: false, answers: { situ: [], mots: [], sujets: ['s4', 's11', 's7', 's0'], fait: [], subi: [] } }];
+function dessinerApercu(c, id) { // un aperçu du paysage : une île d’exemple, posée sur l’eau
+  const ex = { id: `apercu:${id}`, seed: 90210, biome: id, depots: APERCU }, v = vignette(ex, deriver(ex), 132);
+  const dpr = Math.min(devicePixelRatio || 1, 2), w = c.clientWidth || 132, h = c.clientHeight || 119;
+  c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#72d2e6'); g.addColorStop(1, '#2f98b8'); x.fillStyle = g; x.fillRect(0, 0, w, h);
+  x.drawImage(v, 0, 0, w, h);
+}
+function choixPaysage(depart, onPick) {
+  const wrap = el('div', { className: 'paysages' }), boutons = [];
+  for (const id of BIOME_IDS) {
+    const B = BIOMES[id], c = el('canvas'), b = el('button', { type: 'button', className: 'paysage' }, c, el('b', { textContent: cap(B.nom) }), el('small', { textContent: B.dit }));
+    b.setAttribute('aria-pressed', String(id === depart));
+    b.addEventListener('click', () => { for (const [bid, bb] of boutons) bb.setAttribute('aria-pressed', String(bid === id)); onPick(id); });
+    boutons.push([id, b]); wrap.append(b);
+    requestAnimationFrame(() => dessinerApercu(c, id));
+  }
+  return wrap;
+}
+function paysageSheet() { // tant que l’île est vide, on peut changer son paysage
+  let choisi = ile.biome || 'prairie';
+  const ok = el('button', { type: 'button', className: 'gesture', textContent: 'Garder ce paysage' });
+  ok.addEventListener('click', () => { closeSheet(); ile.biome = choisi; saveIle(); courant = deriver(ile); note(`paysage : ${BIOMES[choisi].nom}`); titre = { h1: cap(BIOMES[choisi].nom), line: 'Ton île vide, dans ce paysage. Elle poussera avec ce que tu déposeras.' }; go('ile'); });
+  openSheet(el('div', {}, el('h2', { textContent: 'Le paysage de ton île' }), el('p', { className: 'intro', textContent: 'Il ne dit rien de toi : c’est pour tes yeux. Il change les couleurs, les arbres, les maisons et le petit décor.' }), choixPaysage(choisi, id => { choisi = id; }), ok, footRow(quiet('pas maintenant', closeSheet))));
+}
+
 function changerSheet() {
   const rs = resume(courant);
   const [row, send] = checkRow('L’ajouter à l’archipel, sans ton nom', !ile.envoyee);
@@ -604,13 +648,16 @@ function changerSheet() {
     el('p', { className: 'intro', textContent: `Celle-ci restera sur ce téléphone, telle qu’elle est${NB}: ${listeDe(rs.comptes)}. Une île vide t’attend.` }));
   if (ile.envoyee) body.append(el('p', { className: 'intro', textContent: 'Elle est déjà dans l’archipel, et y restera.' }));
   else body.append(row, el('p', { className: 'tiny', textContent: `Les autres verraient une île avec ${listeDe(rs.comptes)}${rs.phare ? ', et un phare' : ''}. Rien d’autre${NB}: ni texte, ni date, ni case.` }));
+  let paysage = BIOME_IDS[(BIOME_IDS.indexOf(ile.biome || 'prairie') + 1) % BIOME_IDS.length];
+  body.append(el('h3', { textContent: 'Le paysage de la prochaine' }), choixPaysage(paysage, id => { paysage = id; }));
   const b = el('button', { type: 'button', className: 'gesture', textContent: 'Commencer une nouvelle île' });
   b.addEventListener('click', () => {
     closeSheet();
     if (!ile.envoyee && send.checked) { ile.envoyee = true; note(`île : ajoutée à l’archipel (${listeDe(rs.comptes)})`); }
     ile.quittee = new Date().toISOString();
     iles = [...iles, ile]; saveIles();
-    ile = nouvelleIle(); saveIle();
+    ile = nouvelleIle(paysage); saveIle();
+    note(`paysage : ${BIOMES[paysage].nom}`);
     courant = deriver(ile); scene.rot = 0; vie.clear();
     note('geste : changer d’île');
     titre = { h1: 'Une île vide', line: 'Elle poussera avec ce que tu déposeras. Celle d’avant reste ici.' };

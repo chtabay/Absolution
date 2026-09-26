@@ -8,7 +8,7 @@
 //   3. le temps    — depuis quand, et si ça revient                                  → la taille
 //   4. le silence  — qui le sait, et s’il y a un texte                               → l’état
 
-import { SUBJECTS, QUESTIONS } from './contenu.js';
+import { SUBJECTS, QUESTIONS } from './contenu.js?v=11';
 
 /* ───────── 1. Les familles ───────── */
 

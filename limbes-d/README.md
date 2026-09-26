@@ -42,7 +42,15 @@ Et les autres cases : *ça tourne en boucle* → un sentier usé autour ; *ça c
 
 ## Le rendu
 
-Low poly isométrique, dessiné en Canvas 2D, sans image ni bibliothèque. Trois tons par facette et une lumière qui vient de l’astre. Cinq climats suivent la dernière confession : grand jour, soir doux, crépuscule, brume du matin, et le jour ordinaire. Le socle a sa tranche d’eau et ses strates. Au bord de l’île, l’eau s’éclaircit et l’écume respire. Des oiseaux passent, la fumée monte des maisons éclairées, et les lueurs des textes flottent. Les graines apparaissent sur un îlot qui flotte au-dessus des questions. Dans l’archipel, au soir, les îles sont posées sur l’eau.
+Low poly isométrique, dessiné en Canvas 2D, sans image ni bibliothèque. Trois tons par facette et une lumière qui vient de l’astre. Cinq climats suivent la dernière confession : grand jour, soir doux, crépuscule, brume du matin, et le jour ordinaire. Le socle a sa tranche d’eau et ses strates. Au bord de l’île, l’eau s’éclaircit et l’écume respire. Des oiseaux passent, la fumée monte des maisons éclairées, et les lueurs des textes flottent. Les graines apparaissent sur un îlot qui flotte au-dessus des questions, dans le paysage de l’île.
+
+## Les paysages et les formes
+
+La personne choisit le **paysage** en commençant une île, avec un aperçu, ou tant que son île est vide : la prairie, la forêt d’automne, l’île tropicale, l’île enneigée, la lande. Le paysage change les couleurs et la texture du sol, les plaques de couleur dans l’herbe, les falaises, l’eau, les essences (palmiers sous les tropiques, bouleaux dans la lande, sapins enneigés), les maisons (colombage, pierre, crépi, bois, paillote), les cultures (blé, potager, lavande, riz, citrouilles, ananas, rangs sous la neige) et le petit décor (pâquerettes, champignons, souches, fougères, coquillages, bruyère, tas de neige…).
+
+Chaque chose a aussi plusieurs **formes**, tirées d’un nombre stable pour chaque île : arbre rond, étagé ou peuplier ; sapin, pin élancé ou cyprès ; bloc, rocher rond ou dalle ; une pierre levée gravée d’une spirale ; des toits, des murs, des barques de plusieurs couleurs.
+
+Ni le paysage ni les formes ne disent quelque chose : ce qui dit reste la famille, l’espèce, la taille et l’état. Ils multiplient les rendus : cinq familles, quatre sensations, quatre tailles, huit états, cinq paysages, plusieurs formes. Pour en ajouter, il suffit d’une entrée dans `biomes.js` ou d’une forme dans `sprites.js`.
 
 ## Le parcours
 
@@ -51,7 +59,7 @@ Low poly isométrique, dessiné en Canvas 2D, sans image ni bibliothèque. Trois
 3. **Terminer** : poser sur l’île (avec, si on veut, le texte gardé sur le téléphone), ou brûler.
 4. **L’île** : ce qui vient de pousser, avec une phrase ; toucher une chose dit ce qu’elle est, d’après quelles cases, et depuis quand ; tourner ; le détail de ce qui a poussé, la grammaire en mots, et ce qui serait compté.
 5. **Changer d’île** : celle-ci reste sur le téléphone (et se revoit), et peut rejoindre l’archipel sans nom : les autres verraient « une île avec deux arbres nus, une pierre et une maison », rien d’autre.
-6. **L’archipel** : une mer au soir, les îles des autres placées par sensation (agité vers l’horizon, supportable à droite), sans se chevaucher, qui arrivent depuis l’horizon au fil de l’eau ; les tiennes, nommées. Toucher une île la montre de plus près et dit ce qu’elle porte. On y met son île d’aujourd’hui si on veut ; elle y grandit avec soi.
+6. **L’archipel** : une mer au soir, avec des voiliers. Les îles y sont posées au ras de l’eau, sans socle : une côte arrondie qui suit la terre, une plage, un lagon, l’écume. Celles des autres, dans tous les paysages, sont placées par sensation (agité vers l’horizon, supportable à droite), sans se chevaucher, et arrivent depuis l’horizon ; les tiennes sont nommées. Toucher une île la montre de plus près et dit ce qu’elle porte. On y met son île d’aujourd’hui si on veut ; elle y grandit avec soi.
 
 ## Ce qui est faux dans la maquette
 
@@ -64,6 +72,9 @@ Low poly isométrique, dessiné en Canvas 2D, sans image ni bibliothèque. Trois
 - `contenu.js` : les cases, les sujets et leurs poids, les mots-clés d’alerte, les numéros.
 - `grammaire.js` : les familles par sujet, les espèces, les états, la composition, les phrases.
 - `lexique.js` : les mots qui font proposer un sujet ou une sensation, lus sur l’appareil.
-- `ile.js` : la carte, les quartiers, les sprites, le ciel selon le climat, l’archipel inventé.
+- `biomes.js` : les paysages, leurs couleurs, leurs essences, leurs maisons, leurs cultures, leur décor.
+- `sprites.js` : les choses et leurs formes, les états, le petit décor du sol.
+- `dessin.js` : les outils de dessin (facettes, couleurs, halos).
+- `ile.js` : la carte, les quartiers, le sol, le ciel selon le climat, l’île au ras de l’eau, l’archipel inventé.
 - `d.js` : les écrans, les feuilles, le stockage local.
 - `planche.html` : tout ce qui peut pousser, pour vérifier d’un coup d’œil.
