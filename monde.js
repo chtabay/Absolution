@@ -271,7 +271,7 @@ export class Vue3D {
     if (this.mode === 'ile' && this.cle === cle) return;
     const premiere = this.mode !== 'ile';
     this.mode = 'ile'; this.cle = cle; this.vider();
-    this.etendue = Math.max(d.m.rayon * 2 + .6, N * .88); const cibleY = .3 + .08 * this.etendue; // une jeune île se voit petite dans sa mer, puis la remplit
+    this.etendue = Math.max(d.m.rayon * 2 - .2, 4.6); const cibleY = .05 + .05 * this.etendue; // la caméra suit la taille de l’île : de près quand elle est jeune, de plus loin quand elle a grandi
     this.redim(); if (!premiere) this.orbite.but.cible.y = cibleY;
     const s = this.scene, cl = CLIMATS[d.climat] || CLIMATS.N;
     const T = teintes(d.climat, B), D = this.distIle || 20;
@@ -293,8 +293,8 @@ export class Vue3D {
     const sc = scintillements(16, 12); s.add(sc.grp); this.anims.push(sc.anim);
     for (let k = 0; k < 3; k++) { const far = ileStatique(deriver({ id: `loin${k}`, seed: d.ile.seed + 101 * (k + 1), biome: d.ile.biome, depots: [] }, { pleine: true }), .3, 2, fondUni(T)), an = 2.2 + k * 1.3; far.position.set(Math.cos(an) * (30 + k * 8), 0, Math.sin(an) * (30 + k * 8)); far.scale.setScalar(.6); s.add(far); } // d’autres îles, au loin
     this.anneau = new THREE.Mesh(new THREE.TorusGeometry(.5, .025, 4, 32), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .9 })); this.anneau.rotation.x = Math.PI / 2; this.anneau.visible = false; s.add(this.anneau);
-    this.orbite.limites = { elev: [.2, 1.1], dist: [7, 34] }; this.orbite.auto = true;
-    if (premiere) { this.zoomManuel = false; this.redim(); Object.assign(this.orbite.but, { elev: .44, dist: this.distIle }); this.orbite.but.cible.set(0, cibleY, 0); this.orbite.dist = this.distIle * 1.25; this.orbite.cible.set(0, cibleY, 0); }
+    this.orbite.limites = { elev: [.2, 1.1], dist: [4.5, 34] }; this.orbite.auto = true;
+    if (premiere) { this.zoomManuel = false; this.redim(); Object.assign(this.orbite.but, { elev: .56, dist: this.distIle }); this.orbite.but.cible.set(0, cibleY, 0); this.orbite.dist = this.distIle * 1.25; this.orbite.cible.set(0, cibleY, 0); }
   }
   tourner() { this.orbite.but.azim += Math.PI / 2; this.orbite.repos = 0; }
   choisir(cle) {
@@ -394,7 +394,7 @@ export class Ilot3D {
     const b = new Bati(seed % 97 + 1), k = { b, s: 1 };
     F(k, cyl(r, r * .97, 12), B.sol.herbe[0], { y: -.03, sy: .06, ao: 0, varie: .05 });
     F(k, cyl(r * .97, r * .9, 12), B.falaise[0], { y: -.12, sy: .13, ao: .3 });
-    const hc = .5 + r * .25; // le cône sous l’îlot, plus court qu’avant : l’îlot prend plus de place dans son cadre
+    const hc = .3 + r * .16; // la base de l’îlot reste discrète : l’îlot et ce qui y pousse prennent la place
     F(k, cone(9), B.enneige ? '#b9c3cf' : '#b8a896', { y: -.19 - hc / 2, sx: r * .9, sy: hc, sz: r * .9, rx: Math.PI, bosse: .12, graine: 3, ao: .35 });
     const rr = n => { const r2 = (n * 16807 % 2147483647) / 2147483647; return r2; };
     for (let i = 0; i < 7; i++) { const an = i * 2.4, d = r * (.35 + rr(i + seed) * .55); decor(b, tirer(B.decor.herbe, rr(i * 7 + seed)), B, Math.cos(an) * d, 0, Math.sin(an) * d, rr(i * 3 + 1)); }
@@ -423,7 +423,7 @@ export class Ilot3D {
     if (this.visee && this.vise) { const k = reduit ? 1 : .08; this.vise.d += (this.visee.d - this.vise.d) * k; this.vise.y += (this.visee.y - this.vise.y) * k; this.placer(); }
     this.groupe.rotation.y = reduit ? .5 : T * .22;
     this.groupe.position.y = reduit ? 0 : Math.sin(T * .9) * .04;
-    this.cailloux?.forEach((c, i) => { const a = T * .3 + i * 2.1, r = (this.rayon || .6) * 1.25; c.position.set(Math.cos(a) * r, -.35 - i * .15 + Math.sin(T + i) * .05, Math.sin(a) * r); c.rotation.y = T * .5 + i; });
+    this.cailloux?.forEach((c, i) => { const a = T * .3 + i * 2.1, r = (this.rayon || .6) * 1.2; c.position.set(Math.cos(a) * r, -.22 - i * .09 + Math.sin(T + i) * .04, Math.sin(a) * r); c.rotation.y = T * .5 + i; });
     const Tv = this.vieT ? this.vieT() : T;
     for (const o of this.objets) o.scale.setScalar(o.userData.ech * pop(this.vie?.get(o.userData.cle), Tv));
     for (const f of this.anims) f(T);
