@@ -17,7 +17,8 @@ export const FAMILLES = {
   pierre: { nom: 'les pierres', de: 'ce que tu as fait, ou voulu', zone: 'sur la colline', verbe: 's’est posée' },
   maison: { nom: 'les constructions', de: 'ce qui se passe entre vous', zone: 'dans le village', verbe: 's’est construit' },
   culture: { nom: 'les cultures', de: 'toi, et ce qui vient', zone: 'dans les champs', verbe: 'est apparu' },
-  meteo: { nom: 'le temps qu’il fait', de: 'une sensation, sans sujet', zone: 'sur l’île', verbe: 'est arrivé' },
+  meteo: { nom: 'le temps qu’il fait', de: 'une sensation', zone: 'sur l’île', verbe: 'est arrivé' },
+  caillou: { nom: 'les cailloux', de: 'juste posé, sans rien dire de plus', zone: 'sur la plage', verbe: 's’est posé' },
 };
 
 // Chaque sujet a une famille de départ.
@@ -43,15 +44,16 @@ export const ESPECES = {
   pierre: { AD: 'sombre', ED: 'moussue', AS: 'cairn', ES: 'galet', N: 'pierre' },
   maison: { AD: 'cloture', ED: 'volets', AS: 'pont', ES: 'banc', N: 'maison' },
   culture: { AD: 'feu', ED: 'puits', AS: 'champ', ES: 'barque', N: 'champ' },
-  meteo: { AD: 'orage', ED: 'pluie', AS: 'fleurs', ES: 'etang', N: 'caillou' },
+  meteo: { AD: 'orage', ED: 'pluie', AS: 'fleurs', ES: 'etang' },
 };
 
-export function quadDe(a) {
-  const n = { AD: 0, ED: 0, AS: 0, ES: 0 };
+// Les quadrants présents, du plus coché au moins coché (à égalité : ED, AD, ES, AS).
+export function quadsDe(a) {
+  const n = { ED: 0, AD: 0, ES: 0, AS: 0 };
   for (const it of QUESTIONS.mots.items) if (a.mots.has(it.id)) n[it.q]++;
-  const best = ['ED', 'AD', 'ES', 'AS'].reduce((b, q) => (n[q] > n[b] ? q : b), 'ED');
-  return n[best] ? best : 'N';
+  return Object.entries(n).filter(([, c]) => c > 0).sort((p, q) => q[1] - p[1]);
 }
+export const quadDe = a => quadsDe(a)[0]?.[0] || 'N';
 
 /* ───────── 3. La taille : depuis quand ───────── */
 // 0 jeune, 1 adulte, 2 vieux. Un sujet redit fait grandir d’un cran, jusqu’à 3.
@@ -78,19 +80,22 @@ export function etatsDe(a, texte) {
 
 /* ───────── Les graines d’un dépôt ───────── */
 
-export function graines(a, texte) {
-  const quad = quadDe(a), stade = stadeDe(a), etats = etatsDe(a, texte);
-  const out = [];
-  for (const it of QUESTIONS.sujets.items) {
-    if (!a.sujets.has(it.id)) continue;
-    const famille = familleDe(it.id, a);
-    out.push({ key: it.id, sujet: it.id, famille, espece: ESPECES[famille][quad], quad, stade, etats: { ...etats } });
+// lu : ce que le texte dit, lu sur l’appareil ({ quad }), pour la sensation quand aucun mot n’est coché.
+export function graines(a, texte, lu = null) {
+  const qs = quadsDe(a), stade = stadeDe(a), etats = etatsDe(a, texte);
+  let quad = qs[0]?.[0] || 'N', quadDuTexte = false;
+  if (quad === 'N' && lu?.quad && lu.quad !== 'N') { quad = lu.quad; quadDuTexte = true; }
+  const out = [], graine = (key, famille, espece, st = stade, sujet = null) => out.push({ key, sujet, famille, espece, quad, stade: st, etats: { ...etats } });
+  for (const it of QUESTIONS.sujets.items) if (a.sujets.has(it.id)) { const f = familleDe(it.id, a); graine(it.id, f, ESPECES[f][quad], stade, it.id); }
+  if (!out.length) { // pas de sujet : la situation seule fait déjà quelque chose
+    if (a.situ.has('mal') || a.subi.size) graine('situ:mal', 'arbre', ESPECES.arbre[quad]);
+    else if (a.situ.has('regret') || a.fait.size) graine('situ:regret', 'pierre', ESPECES.pierre[quad]);
   }
-  if (!out.length) { // pas de sujet : la sensation seule laisse une trace ; rien du tout : un caillou posé
-    const espece = ESPECES.meteo[quad];
-    out.push({ key: `meteo:${espece}`, sujet: null, famille: 'meteo', espece, quad, stade: quad === 'N' ? 0 : stade, etats: { ...etats } });
-  }
-  return { graines: out, quad, phare: a.situ.has('danger') || a.subi.has('speur'), lourd: a.situ.has('pasbien') };
+  // la sensation : quand rien d’autre ne la porte, le quadrant principal fait le temps ; les autres quadrants laissent chacun leur trace
+  const restants = out.length ? qs.slice(1) : qs;
+  for (const [q, n] of restants) { const e = ESPECES.meteo[q]; out.push({ key: `meteo:${e}`, sujet: null, famille: 'meteo', espece: e, quad: q, stade: Math.min(2, n - 1 + (stade === 2 ? 1 : 0)), etats: { ...etats } }); }
+  if (!out.length) graine('caillou', 'caillou', 'caillou', stade); // rien du tout : un caillou posé, qui porte quand même les états
+  return { graines: out, quad, quadDuTexte, phare: a.situ.has('danger') || a.subi.has('speur'), lourd: a.situ.has('pasbien') };
 }
 
 /* ───────── La composition : un dépôt complète l’île ───────── */
@@ -103,7 +108,7 @@ export const SUIVENT = ['ferme', 'boucle', 'pluie'];
 export const CHANGENT = ['arbre', 'pierre'];
 
 export function pousser(etat, depot, a) { // etat : { assets, phare, climat } ; renvoie ce qui a changé
-  const g = graines(a, depot.texte);
+  const g = graines(a, depot.texte, depot.quadTexte ? { quad: depot.quadTexte } : null);
   const nouvelles = [], grandies = [];
   for (const s of g.graines) {
     const ex = etat.assets.find(x => x.key === s.key);

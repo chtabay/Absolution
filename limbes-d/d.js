@@ -5,6 +5,7 @@
 import { SUBJECTS, QUESTIONS, KEYS, BASE, LEX, HUMANS, MOCK } from './contenu.js';
 import { graines, quadDe, nomDe, phrasesDe, casesDe, sujetLabel, listeDe, listeGraines, FAMILLES, ESPECES, NOMS } from './grammaire.js';
 import { nouvelleIle, deriver, resume, dessinerIle, dessinerGraines, archipelInvente, ileInventee, vignette } from './ile.js';
+import { lire } from './lexique.js';
 
 const $ = s => document.querySelector(s);
 const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
@@ -12,13 +13,14 @@ const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').repla
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const NB = '\u202f'; // espace fine insécable
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const lerp = (a, b, x) => a + (b - a) * x;
 const jour = iso => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
 const mois = iso => new Date(iso).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 
 /* ───────── État ───────── */
 
 const emptyAnswers = () => Object.fromEntries(KEYS.map(k => [k, new Set()]));
-const state = { answers: emptyAnswers(), text: '', short: false, help: 0, helpKind: '', softShown: false, path: null, hinted: false };
+const state = { answers: emptyAnswers(), text: '', short: false, help: 0, helpKind: '', softShown: false, path: null, hinted: false, refus: new Set() };
 const trace = []; // ce qui serait compté (jamais le texte)
 const note = s => trace.push(s);
 const app = $('#app');
@@ -45,7 +47,7 @@ function loadDraft() {
   state.answers = unpack(d.answers); state.text = d.text || ''; state.short = !!d.short;
 }
 function clearDraft() {
-  state.answers = emptyAnswers(); state.text = ''; state.path = null;
+  state.answers = emptyAnswers(); state.text = ''; state.path = null; state.refus = new Set();
   store.del('draft');
   derive();
 }
@@ -67,10 +69,20 @@ const now = () => (performance.now() - t0) / 1000;
 const companion = $('#companion'), entCanvas = $('#ent'), ex = entCanvas.getContext('2d');
 let EW = 0, EH = 0, preview = [], burnAnim = null;
 
-function derive() { // ce que la confession en cours ferait pousser ; jamais le texte, sauf sa présence
+let lu = { sujets: [], quad: 'N' }, proposes = []; // ce que le texte dit (lu sur l’appareil), et les sujets qu’il propose
+const acceptes = () => proposes.filter(id => !state.refus.has(id));
+const avecPropositions = () => ({ ...state.answers, sujets: new Set([...state.answers.sujets, ...acceptes()]) });
+
+function derive() { // ce que la confession en cours ferait pousser
   const before = new Set(preview.map(a => a.key));
-  preview = anyChecked() || state.text.trim() ? graines(state.answers, state.text.trim()).graines : [];
+  lu = lire(state.text);
+  proposes = lu.sujets.map(([id]) => id).filter(id => !state.answers.sujets.has(id));
+  const g = anyChecked() || state.text.trim() ? graines(avecPropositions(), state.text.trim(), state.answers.mots.size ? null : { quad: lu.quad }).graines : [];
+  for (const x of g) if (x.sujet && proposes.includes(x.sujet) && !state.answers.sujets.has(x.sujet)) x.propose = true;
+  preview = g;
   for (const a of preview) if (!before.has(a.key)) vie.set(a.key, now());
+  const noteEl = $('#ent-note');
+  if (noteEl) { const ids = acceptes(); noteEl.hidden = !ids.length; noteEl.textContent = ids.length ? `Ton texte parle aussi de${NB}: ${ids.map(sujetLabel).join(' · ')}` : ''; }
 }
 
 function sizeCanvas(c, ctx) {
@@ -167,56 +179,107 @@ function legende() {
   ul.append(el('li', {}, el('b', { textContent: 'Comment c’est ressenti, l’espèce. ' }), ...Object.entries(Q).map(([q, t]) => `${cap(t)}${NB}: ${Object.keys(ESPECES).map(f => NOMS[ESPECES[f][q]][0].replace(/^(un|une|des) /, '')).join(', ')}. `)));
   ul.append(el('li', {}, el('b', { textContent: 'Depuis quand, la taille. ' }), 'Récent, c’est petit ; depuis longtemps, c’est grand. Un sujet redit fait grandir la même chose, jamais une deuxième. Un arbre nu peut se couvrir de feuilles.'));
   ul.append(el('li', {}, el('b', { textContent: 'Qui le sait, l’état. ' }), 'Jamais dit, c’est fermé. Un texte, c’est une lueur, jamais son contenu. En boucle, un sentier usé. Plus d’une fois, en deux. Ça continue, il pleut dessus. Regret, la mousse reprend la pierre. Jamais réparé, elle est fendue. Un danger, c’est un phare, pour parler à quelqu’un.'));
-  ul.append(el('li', {}, el('b', { textContent: 'Le temps qu’il fait. ' }), 'Le ciel de l’île suit ta dernière confession. Une sensation sans sujet laisse un nuage, des fleurs, un étang ; rien du tout, un caillou posé.'));
+  ul.append(el('li', {}, el('b', { textContent: 'Ton texte. ' }), 'Il est lu ici, sur ce téléphone, jamais ailleurs. S’il parle d’un sujet que tu n’as pas coché, il te le propose à la fin, et rien ne pousse sans ton accord. S’il n’y a aucun mot coché, il donne la sensation. Sur l’île, il fait une lueur.'));
+  ul.append(el('li', {}, el('b', { textContent: 'Le temps qu’il fait. ' }), 'Le ciel de l’île suit ta dernière confession. Chaque sensation cochée en plus de la principale laisse un temps qu’il fait : un nuage d’orage, un nuage de pluie, des fleurs, un étang. Sans sujet, la situation suffit : on m’a fait du mal, un arbre ; je regrette, une pierre. Rien du tout : un caillou posé.'));
   return ul;
 }
 
 /* ───────── L’archipel ───────── */
 
-const arch = { canvas: null, ctx: null, W: 0, H: 0, autres: [], blooms: [], arrivals: 0, next: 0, sel: null };
-const posArch = (a, v) => [arch.W * (.1 + .8 * v), arch.H * (.16 + .76 * (1 - a))];
+const arch = { canvas: null, ctx: null, W: 0, H: 0, autres: [], items: [], blooms: [], arrivals: 0, next: 0, sel: null, hits: [] };
+const HZ = .17; // l’horizon, en part de la hauteur
+const posArch = (a, v) => [arch.W * (.12 + .76 * v), arch.H * (HZ + .06 + .72 * (1 - a))];
+const profondeur = Y => .38 + .72 * Math.max(0, Math.min(1, (Y - arch.H * HZ) / (arch.H * (1 - HZ))));
+const taille = it => (it.mine ? 92 : 74) * profondeur(it.ty);
 const miennes = () => [...iles.filter(x => x.envoyee), ...(ile.envoyee ? [ile] : [])];
+const easeOut = p => 1 - (1 - p) ** 3;
 
-function arriver(T) { // une île de quelqu’un d’autre (inventée)
+function ecarter(items, fixes = []) { // les îles ne se chevauchent pas : on les écarte un peu, autour de leur place
+  const tous = [...fixes, ...items], fixe = new Set(fixes);
+  for (let k = 0; k < 120; k++) {
+    let bouge = false;
+    for (let i = 0; i < tous.length; i++) for (let j = i + 1; j < tous.length; j++) {
+      const a = tous[i], b = tous[j];
+      if (fixe.has(a) && fixe.has(b)) continue;
+      const dx = b.tx - a.tx || (i - j) * .01, dy = (b.ty - a.ty) * 2, dist = Math.hypot(dx, dy) || .01, min = (taille(a) + taille(b)) * .5 + 4;
+      if (dist >= min) continue;
+      bouge = true;
+      const ma = fixe.has(a) ? 0 : 1, mb = fixe.has(b) ? 0 : 1, push = (min - dist) / (ma + mb), ux = dx / dist, uy = dy / dist;
+      a.tx -= ux * push * ma; a.ty -= (uy * push * ma) / 2; b.tx += ux * push * mb; b.ty += (uy * push * mb) / 2;
+    }
+    for (const it of items) { it.tx = Math.max(30, Math.min(arch.W - 30, it.tx)); it.ty = Math.max(arch.H * (HZ + .05), Math.min(arch.H * .95, it.ty)); } // on reste dans la mer
+    if (!bouge) break;
+  }
+}
+
+function placerArchipel() {
+  const items = arch.autres.map(o => ({ ...o, mine: false }));
+  for (const m of miennes()) { const d = deriver(m), r = resume(d); items.push({ ile: m, d, a: r.a, v: r.v, ph: 0, born: -10, mine: true }); }
+  for (const it of items) { const [X, Y] = posArch(it.a, it.v); it.tx = X; it.ty = Y; }
+  ecarter(items);
+  arch.items = items;
+}
+
+function arriver(T) { // une île de quelqu’un d’autre (inventée) arrive depuis l’horizon
   const r = Math.random(), q = r < .27 ? 'AD' : r < .68 ? 'ED' : r < .82 ? 'AS' : 'ES';
   const a = (q[0] === 'A' ? .5 : 0) + Math.random() * .5, v = (q[1] === 'S' ? .5 : 0) + Math.random() * .5;
-  arch.autres.push({ ile: ileInventee(5000 + Math.floor(Math.random() * 1e6), q), a, v, ph: Math.random() * 6.28, born: T });
-  arch.blooms.push({ a, v, born: T });
+  const it = { ile: ileInventee(5000 + Math.floor(Math.random() * 1e6), q), a, v, ph: Math.random() * 6.28, born: T, mine: false };
+  [it.tx, it.ty] = posArch(a, v);
+  ecarter([it], arch.items);
+  it.depuis = [it.tx + (Math.random() - .5) * 80, arch.H * (HZ - .02)];
+  arch.items.push(it);
   arch.arrivals++;
-  arch.next = T + 4 + Math.random() * 5;
+  arch.next = T + 5 + Math.random() * 6;
   updateArchLine();
 }
+
 function drawArchipel(T) {
-  const x = arch.ctx, W = arch.W, H = arch.H;
-  const g = x.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#cfeafa'); g.addColorStop(.13, '#8fd0f0'); g.addColorStop(.14, '#5fc2df'); g.addColorStop(1, '#2c8fb0');
-  x.fillStyle = g; x.fillRect(0, 0, W, H);
-  x.fillStyle = 'rgba(255,255,255,.22)'; x.font = '700 9px Nunito, sans-serif'; x.textAlign = 'center';
-  x.fillText('AGITÉ', W / 2, H * .14 + 11); x.fillText('ÉTEINT', W / 2, H - 5);
-  x.save(); x.translate(8, H * .57); x.rotate(-Math.PI / 2); x.fillText('DOULOUREUX', 0, 3); x.restore();
-  x.save(); x.translate(W - 8, H * .57); x.rotate(Math.PI / 2); x.fillText('SUPPORTABLE', 0, 3); x.restore();
-  for (let k = 0; k < 26; k++) { // des vaguelettes
-    const px = ((k * 137) % W) + Math.sin(T * .5 + k) * 6, py = H * .16 + ((k * 61) % Math.round(H * .82));
-    x.strokeStyle = 'rgba(255,255,255,.22)'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(px - 6, py); x.quadraticCurveTo(px, py - 2.5, px + 6, py); x.stroke();
+  const x = arch.ctx, W = arch.W, H = arch.H, hz = H * HZ;
+  let g = x.createLinearGradient(0, 0, 0, hz); // le ciel du soir
+  g.addColorStop(0, '#9fd3f0'); g.addColorStop(1, '#fbe3c8');
+  x.fillStyle = g; x.fillRect(0, 0, W, hz);
+  const sx = W * .74, sy = hz * .78;
+  let h = x.createRadialGradient(sx, sy, 0, sx, sy, W * .22); h.addColorStop(0, 'rgba(255,214,150,.75)'); h.addColorStop(1, 'rgba(255,214,150,0)');
+  x.fillStyle = h; x.fillRect(0, 0, W, hz);
+  x.fillStyle = '#ffd88a'; x.beginPath(); x.arc(sx, sy, W * .035, 0, Math.PI * 2); x.fill();
+  g = x.createLinearGradient(0, hz, 0, H); // la mer
+  g.addColorStop(0, '#8fdbea'); g.addColorStop(.35, '#4fbcd8'); g.addColorStop(1, '#2a8bad');
+  x.fillStyle = g; x.fillRect(0, hz, W, H - hz);
+  for (let k = 0; k < 40; k++) { // le chemin du soleil sur l’eau
+    const py = hz + 4 + k * 5, sp = 3 + k * 1.1, a = Math.max(0, .5 - k * .012) * (.6 + .4 * Math.sin(T * 2.2 + k));
+    x.strokeStyle = `rgba(255,236,190,${a})`; x.lineWidth = 1.5; x.beginPath(); x.moveTo(sx - sp + Math.sin(T + k) * 3, py); x.lineTo(sx + sp + Math.sin(T + k) * 3, py); x.stroke();
   }
+  h = x.createLinearGradient(0, hz, 0, hz + H * .35); // la brume, vers l’horizon
+  h.addColorStop(0, 'rgba(255,255,255,.45)'); h.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = h; x.fillRect(0, hz, W, H * .35);
+  for (let k = 0; k < 30; k++) { // des vaguelettes
+    const px = ((k * 137 + T * 6) % (W + 20)) - 10, py = hz + 20 + ((k * 61) % Math.round(H - hz - 30)), sc = profondeur(py);
+    x.strokeStyle = `rgba(255,255,255,${.12 + .18 * sc})`; x.lineWidth = 1.2; x.beginPath(); x.moveTo(px - 7 * sc, py); x.quadraticCurveTo(px, py - 3 * sc, px + 7 * sc, py); x.stroke();
+  }
+  x.fillStyle = 'rgba(255,255,255,.3)'; x.font = '700 9px Nunito, sans-serif'; x.textAlign = 'center';
+  x.fillText('AGITÉ', W / 2, hz + 12); x.fillText('ÉTEINT', W / 2, H - 6);
+  x.save(); x.translate(8, (hz + H) / 2); x.rotate(-Math.PI / 2); x.fillText('DOULOUREUX', 0, 3); x.restore();
+  x.save(); x.translate(W - 8, (hz + H) / 2); x.rotate(Math.PI / 2); x.fillText('SUPPORTABLE', 0, 3); x.restore();
   if (T > arch.next && !reduced) arriver(T);
-  const items = [];
-  for (const o of arch.autres) items.push({ ...o, mine: false });
-  for (const m of miennes()) { const d = deriver(m), r = resume(d); items.push({ ile: m, d, a: r.a, v: r.v, ph: 0, born: -10, mine: true }); }
-  items.sort((p, q) => posArch(p.a, p.v)[1] - posArch(q.a, q.v)[1]);
+  for (const it of arch.items) { // où en est chacune
+    if (it.depuis && it.born > 0) { const p = easeOut(Math.min(1, (T - it.born) / 4)); it.X = lerp(it.depuis[0], it.tx, p); it.Y = lerp(it.depuis[1], it.ty, p); if (p >= 1 && !it.arrivee) { it.arrivee = true; arch.blooms.push({ X: it.tx, Y: it.ty, born: T }); } }
+    else { it.X = it.tx; it.Y = it.ty; }
+  }
+  const ordre = [...arch.items].sort((p, q) => p.Y - q.Y);
   arch.hits = [];
-  for (const it of items) {
-    const [X0, Y] = posArch(it.a, it.v), X = X0 + Math.sin(T * .12 + it.ph) * 3, depth = .55 + .5 * (Y / H), size = (it.mine ? 84 : 66) * depth;
-    const ramp = Math.min(1, (T - it.born) / 1.5), d = it.d || deriver(it.ile);
-    if (it.mine) { x.strokeStyle = `rgba(255,255,255,${arch.sel === it.ile.id ? .95 : .55})`; x.lineWidth = 1.5; x.beginPath(); x.ellipse(X, Y + size * .32, size * .6, size * .22, 0, 0, Math.PI * 2); x.stroke(); }
-    x.globalAlpha = ramp;
-    const v = vignette(it.ile, d, 96);
-    x.drawImage(v, X - size / 2, Y - size * .5 + Math.sin(T * .7 + it.ph) * 1.5, size, size * .9);
+  for (const it of ordre) {
+    const sc = profondeur(it.Y), size = (it.mine ? 92 : 74) * sc, X = it.X + Math.sin(T * .12 + it.ph) * 3, Y = it.Y + Math.sin(T * .7 + it.ph) * 1.5;
+    const d = it.d || (it.d = deriver(it.ile)), v = vignette(it.ile, d, 96);
+    if (it.mine) { const gl = x.createRadialGradient(X, Y + size * .25, 0, X, Y + size * .25, size * .8); gl.addColorStop(0, 'rgba(255,255,255,.5)'); gl.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gl; x.beginPath(); x.ellipse(X, Y + size * .25, size * .8, size * .4, 0, 0, Math.PI * 2); x.fill(); }
+    x.globalAlpha = (it.born > 0 ? Math.min(1, (T - it.born) / 1.2) : 1) * (.7 + .3 * sc);
+    x.drawImage(v, X - size / 2, Y - size * .5, size, size * .9);
     x.globalAlpha = 1;
+    if (arch.sel === it) { x.strokeStyle = 'rgba(255,255,255,.95)'; x.lineWidth = 1.5; x.beginPath(); x.ellipse(X, Y + size * .3, size * .58, size * .24, 0, 0, Math.PI * 2); x.stroke(); }
+    if (it.mine) { x.fillStyle = 'rgba(255,255,255,.95)'; x.font = '800 10px Nunito, sans-serif'; x.textAlign = 'center'; x.shadowColor = 'rgba(0,40,60,.6)'; x.shadowBlur = 4; x.fillText(it.ile === ile ? 'la tienne' : `la tienne, ${mois(it.ile.nee).split(' ')[0]}`, X, Y - size * .5 - 4 + Math.sin(T * 1.5) * 1.5); x.shadowBlur = 0; }
     arch.hits.push({ it, X, Y, r: size * .5 });
   }
   arch.blooms = arch.blooms.filter(b => T - b.born < 1.8);
-  for (const b of arch.blooms) { const [X, Y] = posArch(b.a, b.v), age = T - b.born; x.strokeStyle = `rgba(255,255,255,${(1 - age / 1.8) * .8})`; x.lineWidth = 1.5; x.beginPath(); x.ellipse(X, Y + 8, 6 + age * 30, (6 + age * 30) * .45, 0, 0, Math.PI * 2); x.stroke(); }
+  for (const b of arch.blooms) { const age = T - b.born; x.strokeStyle = `rgba(255,255,255,${(1 - age / 1.8) * .8})`; x.lineWidth = 1.5; x.beginPath(); x.ellipse(b.X, b.Y + 10, 8 + age * 34, (8 + age * 34) * .42, 0, 0, Math.PI * 2); x.stroke(); }
 }
 
 function updateArchLine() {
@@ -230,7 +293,8 @@ function renderArchipel() {
   const wrap = el('div', { className: 'ilewrap mer' }), c = el('canvas');
   c.setAttribute('aria-label', 'L’archipel : les îles des autres, et les tiennes');
   wrap.append(c);
-  const caption = el('p', { className: 'ile-caption', id: 'arch-caption', textContent: 'Touche une île.' });
+  const loupe = el('canvas', { className: 'loupe', hidden: true }), caption = el('p', { className: 'ile-caption', id: 'arch-caption', textContent: 'Touche une île pour la voir de plus près.' });
+  const row = el('div', { className: 'loupe-row' }, loupe, caption);
   const nav = el('nav', { className: 'nav wrap' }, quiet('retour', () => history.back()));
   if (!ile.envoyee && ile.depots.length) nav.append(quiet('y mettre ton île', envoyerSheet));
   nav.append(el('span', { className: 'spacer' }), quiet('ton île', () => { regard = null; go('ile'); }));
@@ -238,21 +302,27 @@ function renderArchipel() {
     el('p', { className: 'step', textContent: 'L’archipel' }),
     el('h1', { textContent: 'L’archipel, ce soir' }),
     el('p', { className: 'hint', textContent: 'Les îles des autres arrivent au fil de l’eau, placées par sensation. Personne ne lit rien : ce sont des formes.' }),
-    wrap, caption, el('p', { className: 'ile-line', id: 'arch-line' }),
+    wrap, row, el('p', { className: 'ile-line', id: 'arch-line' }),
     nav,
     el('p', { className: 'tiny', textContent: 'Les îles des autres sont inventées pour la maquette. Les tiennes restent sur ce téléphone.' }),
   );
   arch.canvas = c; arch.ctx = c.getContext('2d'); arch.sel = null;
   [arch.W, arch.H] = sizeCanvas(c, arch.ctx);
-  if (!arch.autres.length) arch.autres = archipelInvente(40);
+  if (!arch.autres.length) arch.autres = archipelInvente(26);
+  placerArchipel();
   arch.blooms = []; arch.arrivals = 0; arch.next = now() + 3;
   c.addEventListener('pointerdown', e => {
     const r = c.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
     let best = null, bd = 1e9;
-    for (const h of arch.hits || []) { const dd = Math.hypot(h.X - px, h.Y - py); if (dd < h.r + 8 && dd < bd) { bd = dd; best = h; } }
-    if (!best) { arch.sel = null; caption.textContent = 'Touche une île.'; return; }
+    for (const h of arch.hits) { const dd = Math.hypot(h.X - px, (h.Y - py) * 1.4); if (dd < h.r + 8 && dd < bd) { bd = dd; best = h; } }
+    if (!best) { arch.sel = null; loupe.hidden = true; caption.textContent = 'Touche une île pour la voir de plus près.'; return; }
     const it = best.it, d = it.d || deriver(it.ile), rs = resume(d);
-    arch.sel = it.mine ? it.ile.id : null;
+    arch.sel = it;
+    const dpr = Math.min(devicePixelRatio || 1, 2), lw = loupe.clientWidth || 120, lh = loupe.clientHeight || 108;
+    loupe.hidden = false; loupe.width = lw * dpr; loupe.height = lh * dpr;
+    const lx = loupe.getContext('2d'); lx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    lx.fillStyle = '#5fc2df'; lx.fillRect(0, 0, lw, lh);
+    lx.drawImage(vignette(it.ile, d, 160), 0, 0, lw, lh);
     caption.textContent = it.mine ? `La tienne${it.ile === ile ? ', celle d’aujourd’hui' : `, celle de ${mois(it.ile.nee)}`}${NB}: ${listeDe(rs.comptes)}.` : `Une île avec ${listeDe(rs.comptes)}${rs.phare ? ', et un phare' : ''}. ${it.born > 0 ? 'Arrivée à l’instant.' : 'Là depuis un moment.'}`;
   });
   updateArchLine();
@@ -446,7 +516,7 @@ function renderPage() {
   app.replaceChildren(
     el('p', { className: 'step', textContent: state.short ? 'En trois lignes' : 'La page' }),
     el('h1', { textContent: state.short ? 'Dis-le court.' : 'À toi.' }),
-    el('p', { className: 'hint', textContent: 'Rien ne part. Le texte ne fait qu’une lueur sur l’île, jamais plus.' }),
+    el('p', { className: 'hint', textContent: 'Rien ne part. Le texte est lu ici, sur ce téléphone, pour te proposer des sujets. Sur l’île, il ne fait qu’une lueur.' }),
     ta, count, help, chips,
     el('nav', { className: 'nav' }, quiet('retour', () => history.back()), el('span', { className: 'spacer' }), finish),
   );
@@ -501,8 +571,18 @@ function humansSheet(first = 'self') {
 
 function finishSheet() {
   const body = el('div', {}, el('h2', { textContent: 'Et maintenant ?' }));
-  const seeds = graines(state.answers, state.text.trim()).graines;
-  body.append(el('p', { className: 'intro', textContent: `${state.text.trim() ? '' : 'Juste tes cases, sans texte. Ça suffit. '}Sur l’île, ça ferait pousser ${listeGraines(seeds)}.` }));
+  const intro = el('p', { className: 'intro' });
+  const refresh = () => { intro.textContent = `${state.text.trim() ? '' : 'Juste tes cases, sans texte. Ça suffit. '}Sur l’île, ça ferait pousser ${listeGraines(preview.length ? preview : graines(state.answers, '').graines)}.`; };
+  refresh();
+  body.append(intro);
+  if (proposes.length) { // ce que le texte propose ; rien ne pousse du texte sans accord
+    body.append(el('p', { className: 'intro', textContent: `Ton texte, lu ici, parle aussi de${NB}:` }));
+    body.append(el('div', { className: 'propositions' }, ...proposes.map(id => {
+      const [row, input] = checkRow(sujetLabel(id), !state.refus.has(id));
+      input.addEventListener('change', () => { if (input.checked) state.refus.delete(id); else state.refus.add(id); derive(); refresh(); });
+      return row;
+    })));
+  }
   const [row, keepText] = checkRow('Garder aussi le texte, sur ce téléphone', true);
   const gesture = (t, sub, fn) => {
     const b = el('button', { type: 'button', className: 'gesture' }, t, el('small', { textContent: sub }));
@@ -547,7 +627,9 @@ function envoyerSheet() {
     closeSheet();
     ile.envoyee = true; saveIle();
     note(`île : ajoutée à l’archipel (${listeDe(rs.comptes)})`);
-    arch.blooms.push({ a: rs.a, v: rs.v, born: now() });
+    placerArchipel();
+    const moi = arch.items.find(it => it.ile === ile);
+    if (moi) arch.blooms.push({ X: moi.tx, Y: moi.ty, born: now() });
     updateArchLine();
     const cap = $('#arch-caption'); if (cap) cap.textContent = 'Elle est là, parmi les autres. Elle y grandira avec toi.';
     app.querySelectorAll('.nav .quiet').forEach(q => { if (q.textContent === 'y mettre ton île') q.remove(); });
@@ -575,7 +657,11 @@ function ilesSheet() {
 
 function poser(garderTexte) {
   const texte = state.text.trim();
+  const ok = acceptes();
+  for (const id of ok) state.answers.sujets.add(id);
   const depot = { id: Date.now(), date: new Date().toISOString(), quad: quadDe(state.answers), texte: !!texte, answers: pack(state.answers) };
+  if (ok.length) { depot.duTexte = ok; note(`texte : lu ici, propose ${ok.map(sujetLabel).join(', ')} (accepté)`); }
+  if (!state.answers.mots.size && lu.quad !== 'N') { depot.quadTexte = lu.quad; depot.quad = lu.quad; note('texte : donne la sensation, aucun mot coché'); }
   if (texte && garderTexte) depot.contenu = texte;
   ile.depots.push(depot); saveIle();
   const d = deriver(ile);

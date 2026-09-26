@@ -14,7 +14,13 @@ export const rng = seed => { let s = Math.abs(Math.floor(seed)) % 2147483647 || 
 const clamp01 = x => Math.max(0, Math.min(1, x));
 const lerp = (a, b, x) => a + (b - a) * x;
 const unpack = obj => Object.fromEntries(KEYS.map(k => [k, new Set(obj?.[k] || [])]));
-const P = (x, pts, fill) => { x.beginPath(); pts.forEach((p, i) => (i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1]))); x.closePath(); x.fillStyle = fill; x.fill(); };
+const P = (x, pts, fill) => { // une facette ; opaque, elle est aussi tracée de sa couleur, pour qu’on ne voie pas les coutures
+  x.beginPath(); pts.forEach((p, i) => (i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1]))); x.closePath(); x.fillStyle = fill; x.fill();
+  if (typeof fill === 'string' && fill[0] === '#') { x.strokeStyle = fill; x.lineWidth = .7; x.lineJoin = 'round'; x.stroke(); }
+};
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const nuance = (h, k) => `rgb(${hex(h).map(v => Math.round(k >= 0 ? v + (255 - v) * k : v * (1 + k))).join(',')})`; // k > 0 éclaircit, k < 0 assombrit
+export const ECHELLE = 1.3; // la taille des choses sur l’île, par rapport à une tuile
 const L = (x, pts, stroke, w, dash) => { x.beginPath(); pts.forEach((p, i) => (i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1]))); x.strokeStyle = stroke; x.lineWidth = w; x.lineCap = 'round'; x.lineJoin = 'round'; x.setLineDash(dash || []); x.stroke(); x.setLineDash([]); };
 const E = (x, X, Y, rx, ry, fill) => { x.beginPath(); x.ellipse(X, Y, rx, ry, 0, 0, Math.PI * 2); x.fillStyle = fill; x.fill(); };
 const halo = (x, X, Y, r, col, a) => { const g = x.createRadialGradient(X, Y, 0, X, Y, r); g.addColorStop(0, col.replace('A', a)); g.addColorStop(1, col.replace('A', 0)); x.fillStyle = g; x.beginPath(); x.arc(X, Y, r, 0, Math.PI * 2); x.fill(); };
@@ -48,11 +54,11 @@ const COL = {
   fleurs: ['#ff6b6b', '#ffd166', '#ff9ecf', '#b08cff', '#ffffff', '#ff8e3c'],
 };
 export const CLIMATS = {
-  N: { ciel: ['#8fd0f0', '#dcf0f9'], eau: '#48b8d6', astre: 'soleil', teinte: null },
-  AS: { ciel: ['#a2dcf6', '#eaf7fc'], eau: '#4ec4e0', astre: 'soleil', teinte: null },
-  ES: { ciel: ['#f6c9a1', '#fbe9d8'], eau: '#7dbdd0', astre: 'soir', teinte: 'rgba(255,190,120,.16)' },
-  AD: { ciel: ['#d8897a', '#5c5a90'], eau: '#3f7ea2', astre: 'crepuscule', teinte: 'rgba(150,105,165,.22)' },
-  ED: { ciel: ['#a7b2bc', '#d9dfe4'], eau: '#6f9db1', astre: null, teinte: 'rgba(160,170,185,.24)' },
+  N: { ciel: ['#8dcff0', '#e4f4fb'], eau: '#46bcd9', astre: 'soleil', teinte: null, oiseaux: true },
+  AS: { ciel: ['#9edbf6', '#effafd'], eau: '#4fc7e3', astre: 'soleil', teinte: null, oiseaux: true },
+  ES: { ciel: ['#f8d0a4', '#fdeedd'], eau: '#83c3d4', astre: 'soir', teinte: 'rgba(255,196,130,.15)', oiseaux: true },
+  AD: { ciel: ['#f4a98a', '#7b6cae'], eau: '#4a8bb0', astre: 'crepuscule', teinte: 'rgba(170,120,180,.18)', oiseaux: false },
+  ED: { ciel: ['#b8c4dc', '#f1ede9'], eau: '#7eadc2', astre: 'brume', teinte: 'rgba(180,185,215,.14)', oiseaux: false },
 };
 
 /* ───────── La carte ───────── */
@@ -80,8 +86,16 @@ export function carte(seed) {
     for (const [di, dj] of [[-1, -1], [-1, 0], [0, -1], [0, 0]]) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= N || jj >= N || !land[ii * N + jj]) continue; s += h[ii * N + jj]; k++; }
     vh[i * (N + 1) + j] = k ? (s / k) * (.88 + r() * .24) : 0;
   }
-  const m = { N, h, vh, land, seed, rive: [] };
+  const m = { N, h, vh, land, seed, rive: [], decor: [] };
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) if (!land[i * N + j] && voisins(i, j).some(([a, b]) => land[a * N + b])) m.rive.push([i, j]);
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { // un peu de vie au sol, sans rien vouloir dire
+    if (!land[i * N + j]) continue;
+    const s = sol(m, i, j), n = r();
+    if (s === 'herbe' && n < .4) for (let k = 0; k < 2; k++) m.decor.push([i, j, 'touffe', .2 + r() * .6, .2 + r() * .6]);
+    else if (s === 'herbe' && n < .62) for (let k = 0; k < 3; k++) m.decor.push([i, j, r() < .7 ? 'paquerette' : 'bouton', .2 + r() * .6, .2 + r() * .6]);
+    else if (s === 'sable' && n < .45) m.decor.push([i, j, 'galet', .25 + r() * .5, .25 + r() * .5]);
+    else if (s === 'roche' && n < .3) m.decor.push([i, j, 'eclat', .3 + r() * .4, .3 + r() * .4]);
+  }
   cartes.set(seed, m);
   return m;
 }
@@ -101,7 +115,8 @@ const proj = (o, i, j, z) => [o.ox + (i - j) * o.TW / 2, o.oy + (i + j) * o.TH /
 const QUARTIERS = { foret: [N * .28, N * .72], colline: [N * .26, N * .26], village: [N * .7, N * .7], champs: [N * .72, N * .3], centre: [N * .5, N * .5] };
 function zoneDe(a) {
   const e = a.espece;
-  if (a.famille === 'meteo') return e === 'caillou' ? ['plage', ['sable']] : e === 'etang' ? ['bas', ['herbe', 'sable']] : e === 'fleurs' ? ['pre', ['herbe']] : ['ciel', ['herbe', 'sable', 'roche']];
+  if (a.famille === 'meteo') return e === 'etang' ? ['bas', ['herbe', 'sable']] : e === 'fleurs' ? ['pre', ['herbe']] : ['ciel', ['herbe', 'sable', 'roche']];
+  if (e === 'caillou') return ['plage', ['sable']];
   if (a.famille === 'arbre') return ['foret', ['herbe', 'roche']];
   if (a.famille === 'pierre') return ['colline', ['roche', 'herbe', 'sable', 'neige']];
   if (a.famille === 'maison') return ['village', ['herbe', 'sable']];
@@ -144,7 +159,7 @@ export function deriver(ile) {
   const occ = new Set(), r = rng(ile.seed + 11);
   const phareTile = etat.phare ? bout(m) : null;
   if (phareTile) occ.add(phareTile[0] * N + phareTile[1]);
-  for (const a of etat.assets) { a.tile = placer(m, occ, a, r); if (a.famille !== 'meteo' || a.espece === 'etang' || a.espece === 'caillou') occ.add(a.tile[0] * N + a.tile[1]); }
+  for (const a of etat.assets) { a.tile = placer(m, occ, a, r); if (a.famille !== 'meteo' || a.espece === 'etang') occ.add(a.tile[0] * N + a.tile[1]); }
   return { ...etat, ile, m, phareTile, dernier };
 }
 
@@ -162,9 +177,10 @@ export function resume(d) {
 // Chaque chose est dessinée à son pied (X, Y), à l’échelle u (la largeur d’une tuile).
 
 function tronc(x, X, Y, w, h, tons = COL.tronc) {
-  P(x, [[X - w / 2, Y + w * .2], [X, Y + w * .3], [X, Y - h], [X - w / 2, Y - h]], tons[0]);
-  P(x, [[X, Y + w * .3], [X + w / 2, Y + w * .2], [X + w / 2, Y - h], [X, Y - h]], tons[1]);
+  P(x, [[X - w * .7, Y + w * .25], [X - w / 2, Y + w * .2], [X, Y + w * .3], [X, Y - h], [X - w / 2, Y - h]], tons[0]); // avec un léger empattement
+  P(x, [[X, Y + w * .3], [X + w / 2, Y + w * .2], [X + w * .7, Y + w * .25], [X + w / 2, Y - h], [X, Y - h]], tons[1]);
 }
+function ombre(x, X, Y, rx, ry, a = .12) { E(x, X + rx * .12, Y + ry * .2, rx, ry, `rgba(40,30,20,${a})`); }
 function blob(x, cx, cy, r, tons, k = 7, ry = .92) {
   const pts = [];
   for (let i = 0; i < k; i++) { const a = -Math.PI / 2 + (i / k) * Math.PI * 2, rr = r * (i % 2 ? .9 : 1); pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * ry]); }
@@ -198,17 +214,20 @@ function unArbre(x, X, Y, u, a, T, o) {
     const tons = e === 'fleuri' ? COL.fleuri : COL.feuillu;
     tronc(x, X, Y, .13 * u, .42 * u);
     if (a.etats.ferme) creux(x, X, Y - .2 * u, u);
-    blob(x, X - .27 * u, Y - .58 * u, .3 * u, tons, 7);
-    blob(x, X + .28 * u, Y - .56 * u, .3 * u, tons, 7);
-    blob(x, X, Y - .8 * u, .4 * u, tons, 8);
-    if (e === 'fleuri') { x.fillStyle = '#fff'; for (const [dx, dy] of [[-.3, -.5], [.25, -.7], [-.05, -1.02], [.12, -.45], [-.2, -.85]]) { x.beginPath(); x.arc(X + dx * u, Y + dy * u, .045 * u, 0, Math.PI * 2); x.fill(); } }
+    blob(x, X - .28 * u, Y - .56 * u, .3 * u, tons, 7);
+    blob(x, X + .29 * u, Y - .54 * u, .3 * u, tons, 7);
+    blob(x, X + .02 * u, Y - .84 * u, .4 * u, tons, 8);
+    blob(x, X - .04 * u, Y - .5 * u, .26 * u, tons, 7);
+    x.fillStyle = 'rgba(255,255,255,.35)'; x.beginPath(); x.arc(X - .12 * u, Y - 1.05 * u, .06 * u, 0, Math.PI * 2); x.fill(); // un éclat de lumière
+    if (e === 'fleuri') { x.fillStyle = '#fff'; for (const [dx, dy] of [[-.3, -.5], [.25, -.7], [-.05, -1.02], [.12, -.45], [-.2, -.85], [.3, -.42]]) { x.beginPath(); x.arc(X + dx * u, Y + dy * u, .045 * u, 0, Math.PI * 2); x.fill(); } }
   }
 }
 function arbre(x, X, Y, u, a, T, o) {
+  ombre(x, X, Y, (a.stade >= 3 ? .8 : [.3, .4, .5][a.stade]) * u, .16 * u);
   if (a.stade >= 3) { unArbre(x, X - .4 * u, Y - .16 * u, u * .72, a, T, o); unArbre(x, X + .42 * u, Y - .12 * u, u * .66, a, T, o); unArbre(x, X, Y + .04 * u, u * 1.02, a, T, o); }
   else unArbre(x, X, Y, u * [.6, .88, 1.15][a.stade], a, T, o);
   if (a.etats.caillou) pierreUne(x, X + .36 * u, Y + .1 * u, .2 * u, .14 * u, COL.pierre);
-  if (a.etats.pluie) { const sc = [.6, .88, 1.15, 1.2][a.stade]; nuage(x, X + .1 * u, Y - (1.35 * sc + .55) * u, u * .55, COL.gris); pluie(x, X + .1 * u, Y - (1.35 * sc + .4) * u, u * .55, T, 4); }
+  if (a.etats.pluie) { const sc = [.6, .88, 1.15, 1.2][a.stade]; nuage(x, X + .1 * u, Y - (1.35 * sc + .55) * u, u * .55, COL.gris); pluie(x, X + .1 * u, Y - (1.35 * sc + .4) * u, u * .55, T, 4, (1.35 * sc + .3) * u); }
 }
 function pierreUne(x, cx, cy, w, h, t) {
   const tl = [cx - w * .3, cy - h * .95], tr = [cx + w * .22, cy - h], rm = [cx + w * .48, cy - h * .5], br = [cx + w * .45, cy], bl = [cx - w * .5, cy], lm = [cx - w * .5, cy - h * .45], mid = [cx + w * .04, cy - h * .5];
@@ -217,12 +236,15 @@ function pierreUne(x, cx, cy, w, h, t) {
   P(x, [tr, rm, br, mid], t[2]);
 }
 function pierre(x, X, Y, u, a, T, o) {
-  const e = a.espece, tons = COL[e] || COL.pierre, st = a.stade, terrain = o.m ? sol(o.m, o.i, o.j) : 'herbe';
-  if (a.etats.ferme && st < 3) E(x, X, Y + .06 * u, .5 * u, .16 * u, terrain === 'sable' ? COL.sable[1] : COL.herbe[1]); // à moitié enterrée
-  if (e === 'cairn') { const n = 2 + st; let y = Y, w = (.55 + st * .06) * u; for (let k = 0; k < n; k++) { const h = (.16 + .03 * (n - k)) * u; pierreUne(x, X + (k % 2 ? .03 : -.03) * u, y, w, h, tons); y -= h * .85; w *= .8; } }
+  const e = a.espece, tons = e === 'caillou' ? COL.galet : COL[e] || COL.pierre, st = a.stade, terrain = o.m ? sol(o.m, o.i, o.j) : 'herbe';
+  ombre(x, X, Y, (e === 'caillou' ? .2 : st >= 3 ? .34 : [.22, .32, .44][st]) * u, .12 * u);
+  const Y0 = Y;
+  if (a.etats.ferme && st < 3) Y += .08 * u; // à moitié enterrée : plus bas, puis un tertre devant
+  if (e === 'caillou') pierreUne(x, X, Y, [.24, .32, .42, .5][st] * u, [.16, .22, .3, .36][st] * u, tons);
+  else if (e === 'cairn') { const n = 2 + st; let y = Y, w = (.55 + st * .06) * u; for (let k = 0; k < n; k++) { const h = (.16 + .03 * (n - k)) * u; pierreUne(x, X + (k % 2 ? .03 : -.03) * u, y, w, h, tons); y -= h * .85; w *= .8; } }
   else if (st >= 3) pierreUne(x, X, Y, .5 * u, 1.3 * u, tons);
   else pierreUne(x, X, Y, [.34, .55, .8][st] * u, [.24, .42, .62][st] * u, tons);
-  if (a.etats.ferme && st < 3) E(x, X, Y + .02 * u, .48 * u, .12 * u, terrain === 'sable' ? COL.sable[0] : COL.herbe[0]);
+  if (a.etats.ferme && st < 3) { tertre(x, X, Y0 + .04 * u, u, terrain); Y = Y0; }
   if (a.etats.fissure) L(x, [[X - .02 * u, Y - .6 * u * [.4, .7, 1, 2][st]], [X + .05 * u, Y - .4 * u * [.4, .7, 1, 2][st]], [X - .04 * u, Y - .25 * u * [.4, .7, 1, 2][st]], [X + .03 * u, Y - .1 * u]], '#3d3948', .035 * u);
   if (a.etats.mousse) { for (const [dx, dy, c] of [[-.22, -.1, '#7bb661'], [.18, -.16, '#8fc44a'], [-.05, -.02, '#7bb661']]) E(x, X + dx * u, Y + dy * u * [.6, .9, 1.2, 2][st], .09 * u, .05 * u, c); fleur(x, X - .3 * u, Y + .04 * u, u, COL.fleurs[0]); fleur(x, X + .28 * u, Y + .05 * u, u, COL.fleurs[1]); }
 }
@@ -230,21 +252,31 @@ function fleur(x, X, Y, u, col) { L(x, [[X, Y], [X, Y - .12 * u]], '#5f9e34', .0
 function boite(x, X, Y, u, style, o = {}, T = 0) {
   const hw = .42 * u, hh = hw * .5, wh = .44 * u, rh = .34 * u;
   const murs = style === 'bois' ? [COL.bois[0], COL.bois[1]] : COL.murs, toit = style === 'bois' ? [COL.bois[1], COL.bois[2]] : COL.toit;
+  ombre(x, X, Y + hh * .3, hw * 1.25, hh * 1.2, .1);
   P(x, [[X - hw, Y], [X, Y + hh], [X, Y + hh - wh], [X - hw, Y - wh]], murs[0]);
   P(x, [[X, Y + hh], [X + hw, Y], [X + hw, Y - wh], [X, Y + hh - wh]], murs[1]);
-  const dx = X - hw * .5, dy = Y + hh * .5, dw = .075 * u, dh = .24 * u; // la porte, sur le mur gauche
+  const dx = X - hw * .5, dy = Y + hh * .5, dw = .075 * u, dh = .24 * u; // la porte, sur le mur gauche, avec son seuil
+  P(x, [[dx - dw * 1.4, dy - .5 * dw * 1.4 + .03 * u], [dx + dw * 1.4, dy + .5 * dw * 1.4 + .03 * u], [dx + dw * 1.4, dy + .5 * dw * 1.4], [dx - dw * 1.4, dy - .5 * dw * 1.4]], COL.pierre[2]);
   P(x, [[dx - dw, dy - .5 * dw], [dx + dw, dy + .5 * dw], [dx + dw, dy + .5 * dw - dh], [dx - dw, dy - .5 * dw - dh]], o.ferme ? '#4a3626' : '#7a5236');
-  const wx = X + hw * .5, wy = Y + hh * .5 - wh * .5, ww = .08 * u, wwh = .14 * u; // la fenêtre, sur le mur droit
+  x.fillStyle = '#e9c46a'; x.beginPath(); x.arc(dx + dw * .55, dy + .5 * dw * .55 - dh * .45, .015 * u, 0, Math.PI * 2); x.fill();
+  const wx = X + hw * .5, wy = Y + hh * .5 - wh * .5, ww = .08 * u, wwh = .14 * u; // la fenêtre, sur le mur droit, avec son cadre
   const fen = [[wx - ww, wy + .5 * ww], [wx + ww, wy - .5 * ww], [wx + ww, wy - .5 * ww - wwh], [wx - ww, wy + .5 * ww - wwh]];
+  P(x, fen.map(([px, py]) => [wx + (px - wx) * 1.25, wy - wwh / 2 + (py - (wy - wwh / 2)) * 1.18]), style === 'bois' ? COL.bois[2] : '#c9bda3');
   if (o.lit) { halo(x, wx, wy - wwh / 2, .5 * u, 'rgba(255,214,102,A)', .38 + .06 * Math.sin(T * 3)); P(x, fen, '#ffd766'); } else P(x, fen, '#6a7d93');
   if (o.volets) { P(x, [fen[0], [wx, wy], [wx, wy - wwh], fen[3]], '#7a5236'); P(x, [[wx + .01 * u, wy - .005 * u], fen[1], fen[2], [wx + .01 * u, wy - wwh - .005 * u]], '#6a4630'); }
   const e = 1.14, apex = [X, Y - wh - rh];
   P(x, [[X - hw * e, Y - wh + hh * (e - 1)], [X, Y + hh * e - wh], apex], toit[0]);
   P(x, [[X, Y + hh * e - wh], [X + hw * e, Y - wh + hh * (e - 1)], apex], toit[1]);
-  if (style !== 'bois') { const cx = X + hw * .5, cy = Y - wh - rh * .42; P(x, [[cx - .05 * u, cy], [cx + .05 * u, cy - .025 * u], [cx + .05 * u, cy - .2 * u], [cx - .05 * u, cy - .175 * u]], '#9a9a9a'); P(x, [[cx - .05 * u, cy - .175 * u], [cx + .05 * u, cy - .2 * u], [cx, cy - .24 * u]], '#bdbdbd'); }
+  L(x, [[X, Y + hh * e - wh], apex], style === 'bois' ? COL.bois[0] : '#ea8a72', .02 * u); // l’arête, dans la lumière
+  if (style !== 'bois') {
+    const cx = X + hw * .5, cy = Y - wh - rh * .42;
+    P(x, [[cx - .05 * u, cy], [cx + .05 * u, cy - .025 * u], [cx + .05 * u, cy - .2 * u], [cx - .05 * u, cy - .175 * u]], '#9a9a9a'); P(x, [[cx - .05 * u, cy - .175 * u], [cx + .05 * u, cy - .2 * u], [cx, cy - .24 * u]], '#bdbdbd');
+    if (o.lit && speedK) for (let k = 0; k < 3; k++) { const t = ((T * .35 + k * .33) % 1); E(x, cx + Math.sin(t * 6 + k) * .05 * u + t * .1 * u, cy - .3 * u - t * .55 * u, (.05 + t * .07) * u, (.04 + t * .05) * u, `rgba(255,255,255,${(1 - t) * .55})`); } // la fumée
+  }
 }
 function maison(x, X, Y, u, a, T, o) {
   const e = a.espece, st = a.stade;
+  if (e === 'banc' || e === 'cloture') ombre(x, X, Y, .45 * u, .12 * u, .09);
   if (e === 'pont') {
     const sc = [.75, .9, 1.05, 1.2][st] * u;
     E(x, X, Y + .02 * u, .55 * sc, .15 * sc, o.eau); E(x, X - .1 * sc, Y, .3 * sc, .07 * sc, '#8fd8ec');
@@ -279,6 +311,7 @@ function maison(x, X, Y, u, a, T, o) {
 }
 function culture(x, X, Y, u, a, T, o) {
   const e = a.espece, st = a.stade;
+  if (e !== 'champ' && e !== 'barque') ombre(x, X, Y, .3 * u, .12 * u);
   if (e === 'champ') {
     const tw = .43 * u, th = tw * .5, ferme = a.etats.ferme;
     P(x, [[X, Y - th], [X + tw, Y], [X, Y + th], [X - tw, Y]], ferme ? '#cfc9a3' : '#e6cb5c');
@@ -329,16 +362,18 @@ function nuage(x, X, Y, u, tons) {
   P(x, [[X - .48 * u, Y], [X + .48 * u, Y], [X + .44 * u, Y + .1 * u], [X - .44 * u, Y + .1 * u]], tons[1]);
   blob(x, X - .25 * u, Y - .02 * u, .24 * u, tons, 8); blob(x, X + .27 * u, Y, .22 * u, tons, 8); blob(x, X, Y - .12 * u, .32 * u, tons, 8);
 }
-function pluie(x, X, Y, u, T, n) {
-  for (let k = 0; k < n; k++) { const t = ((T * 1.6 * speedK + k * .37) % 1), px = X - .38 * u + (k * .76 * u) / (n - 1), py = Y + t * 1.3 * u; L(x, [[px, py], [px - .03 * u, py + .18 * u]], `rgba(120,190,225,${.85 - t * .6})`, .035 * u); }
+function pluie(x, X, Y, u, T, n, chute = 1.3 * u) {
+  for (let k = 0; k < n; k++) { const t = ((T * 1.6 * speedK + k * .37) % 1), px = X - .34 * u + (k * .68 * u) / (n - 1), py = Y + t * chute; L(x, [[px, py], [px - .03 * u, py + .16 * u]], `rgba(120,190,225,${.85 - t * .5})`, .035 * u); }
 }
 function meteo(x, X, Y, u, a, T, o) {
-  const e = a.espece, st = a.stade, sc = [.8, 1, 1.15, 1.3][st], drift = Math.sin(T * .35 * speedK + X * .01) * .3 * u;
+  const e = a.espece, st = a.stade, sc = [.8, 1, 1.15, 1.3][st], drift = Math.sin(T * .35 * speedK + X * .01) * .15 * u, haut = (o.bas ? 1.05 : 1.55) * u;
+  if (e === 'orage' || e === 'pluie') E(x, X + drift, Y, .42 * u * sc, .15 * u * sc, 'rgba(40,45,70,.16)'); // son ombre, au sol
   if (e === 'orage') {
-    nuage(x, X + drift, Y - 2.4 * u, u * sc, COL.orage);
-    const on = reduced ? .5 : Math.sin(T * 6.3) > .86 ? 1 : .18;
-    L(x, [[X + drift + .06 * u, Y - 2.25 * u], [X + drift - .08 * u, Y - 1.85 * u], [X + drift + .06 * u, Y - 1.8 * u], [X + drift - .1 * u, Y - 1.35 * u]], `rgba(255,224,102,${on})`, .05 * u);
-  } else if (e === 'pluie') { nuage(x, X + drift, Y - 2.2 * u, u * sc, COL.gris); pluie(x, X + drift, Y - 2.05 * u, u * sc, T, 6); }
+    nuage(x, X + drift, Y - haut, u * sc, COL.orage);
+    const on = reduced ? .5 : Math.sin(T * 6.3) > .86 ? 1 : .15;
+    L(x, [[X + drift + .06 * u, Y - haut + .1 * u], [X + drift - .08 * u, Y - haut * .62], [X + drift + .05 * u, Y - haut * .58], [X + drift - .06 * u, Y - .05 * u]], `rgba(255,224,102,${on})`, .05 * u);
+    if (on > .5) halo(x, X + drift, Y - haut * .5, .7 * u, 'rgba(255,240,180,A)', .25);
+  } else if (e === 'pluie') { nuage(x, X + drift, Y - haut, u * sc, COL.gris); pluie(x, X + drift, Y - haut + .12 * u, u * sc, T, 7, haut - .15 * u); E(x, X + drift, Y + .02 * u, .22 * u, .07 * u, 'rgba(130,200,230,.45)'); }
   else if (e === 'fleurs') {
     const r = rng(o.i * 31 + o.j * 7 + 3);
     for (let k = 0; k < 6 + st * 2; k++) fleur(x, X + (r() - .5) * .8 * u, Y + (r() - .5) * .38 * u, u * .9, COL.fleurs[k % COL.fleurs.length]);
@@ -349,15 +384,34 @@ function meteo(x, X, Y, u, a, T, o) {
     E(x, X + drift * .5, Y - .12 * u, .55 * u, .1 * u, 'rgba(255,255,255,.28)');
   } else if (e === 'caillou') pierreUne(x, X, Y, [.24, .34, .46, .58][st] * u, [.16, .24, .32, .4][st] * u, COL.galet);
 }
-function lanterne(x, X, Y, u, T) {
-  L(x, [[X, Y], [X, Y - .4 * u]], '#4a3f3a', .04 * u);
-  halo(x, X, Y - .44 * u, .5 * u, 'rgba(255,214,102,A)', .36 + .05 * Math.sin(T * 2.3 * speedK));
-  P(x, [[X - .07 * u, Y - .36 * u], [X + .07 * u, Y - .36 * u], [X + .07 * u, Y - .52 * u], [X - .07 * u, Y - .52 * u]], '#4a3f3a');
-  P(x, [[X - .045 * u, Y - .385 * u], [X + .045 * u, Y - .385 * u], [X + .045 * u, Y - .5 * u], [X - .045 * u, Y - .5 * u]], '#ffd766');
+function lanterne(x, X, Y, u, T) { // un réverbère, près du banc
+  E(x, X, Y, .06 * u, .03 * u, '#3f3834');
+  L(x, [[X, Y], [X, Y - .5 * u]], '#3f3834', .035 * u);
+  halo(x, X, Y - .57 * u, .45 * u, 'rgba(255,214,120,A)', .4 + .05 * Math.sin(T * 2.3 * speedK));
+  P(x, [[X - .06 * u, Y - .5 * u], [X + .06 * u, Y - .5 * u], [X + .05 * u, Y - .64 * u], [X - .05 * u, Y - .64 * u]], '#ffe39a');
+  P(x, [[X - .09 * u, Y - .64 * u], [X + .09 * u, Y - .64 * u], [X, Y - .73 * u]], '#3f3834');
 }
-function sentier(x, X, Y, u) { x.beginPath(); x.ellipse(X, Y + .04 * u, .58 * u, .27 * u, 0, 0, Math.PI * 2); x.strokeStyle = 'rgba(190,150,100,.85)'; x.lineWidth = .07 * u; x.setLineDash([.12 * u, .09 * u]); x.stroke(); x.setLineDash([]); }
+function lueur(x, X, Y, u, T, ph = 0) { // il y a un texte : une lumière flotte à côté, jamais son contenu
+  const cx = X + Math.cos(T * .7 * speedK + ph) * .07 * u, cy = Y + Math.sin(T * 1.6 * speedK + ph) * .06 * u;
+  halo(x, cx, cy, .45 * u, 'rgba(255,214,130,A)', .5);
+  halo(x, cx, cy, .13 * u, 'rgba(255,250,225,A)', .95);
+  x.fillStyle = '#fffbea'; x.beginPath(); x.arc(cx, cy, .045 * u, 0, Math.PI * 2); x.fill();
+  for (let k = 0; k < 3; k++) { const an = T * 1.1 * speedK + ph + k * 2.1; x.fillStyle = `rgba(255,236,170,${.45 + .4 * Math.sin(T * 3 * speedK + k + ph)})`; x.beginPath(); x.arc(cx + Math.cos(an) * .2 * u, cy + Math.sin(an) * .09 * u - .04 * u, .02 * u, 0, Math.PI * 2); x.fill(); }
+}
+function sentier(x, X, Y, u) { // ça tourne en boucle : un sentier usé, tout autour
+  x.beginPath(); x.ellipse(X, Y + .03 * u, .42 * u, .2 * u, 0, 0, Math.PI * 2); x.strokeStyle = 'rgba(196,160,110,.9)'; x.lineWidth = .075 * u; x.stroke();
+  x.beginPath(); x.ellipse(X, Y + .025 * u, .42 * u, .2 * u, 0, Math.PI * 1.05, Math.PI * 1.95); x.strokeStyle = 'rgba(236,214,170,.9)'; x.lineWidth = .025 * u; x.stroke();
+}
+function tertre(x, X, Y, u, terrain) { // jamais dit : la chose sort à peine d’un petit tertre
+  const t = terrain === 'sable' ? COL.sable : COL.herbe;
+  P(x, [[X - .32 * u, Y + .02 * u], [X - .14 * u, Y - .07 * u], [X + .16 * u, Y - .06 * u], [X + .33 * u, Y + .02 * u], [X + .06 * u, Y + .11 * u]], t[1]);
+  P(x, [[X - .32 * u, Y + .02 * u], [X - .14 * u, Y - .07 * u], [X + .02 * u, Y - .02 * u], [X + .06 * u, Y + .11 * u]], t[0]);
+  L(x, [[X - .18 * u, Y + .02 * u], [X - .2 * u, Y - .06 * u]], COL.herbe[2], .02 * u); L(x, [[X + .2 * u, Y + .02 * u], [X + .23 * u, Y - .05 * u]], COL.herbe[2], .02 * u);
+}
 function phare(x, X, Y, u, T) {
   const w = .36 * u, h = 1.35 * u;
+  ombre(x, X, Y, .32 * u, .14 * u);
+  for (const [dx, dy, ww] of [[-.3, .08, .16], [.28, .1, .14], [.05, .16, .12]]) pierreUne(x, X + dx * u, Y + dy * u, ww * u, ww * .6 * u, COL.pierre); // des rochers au pied
   P(x, [[X - w / 2, Y + .06 * u], [X, Y + .12 * u], [X, Y - h], [X - w * .36, Y - h]], COL.blanc[0]); P(x, [[X, Y + .12 * u], [X + w / 2, Y + .06 * u], [X + w * .36, Y - h], [X, Y - h]], COL.blanc[2]);
   for (const t of [.3, .62]) { const yy = Y - h * t, ww = w * (1 - .28 * t) / 2; P(x, [[X - ww, yy + .08 * u], [X, yy + .12 * u], [X, yy - .02 * u], [X - ww, yy - .06 * u]], '#e04e4e'); P(x, [[X, yy + .12 * u], [X + ww, yy + .08 * u], [X + ww, yy - .06 * u], [X, yy - .02 * u]], '#b93d3d'); }
   E(x, X, Y - h, w * .5, w * .22, '#4a4a55');
@@ -367,13 +421,16 @@ function phare(x, X, Y, u, T) {
   P(x, [[X - .1 * u, Y - h], [X + .1 * u, Y - h], [X + .1 * u, Y - h - .22 * u], [X - .1 * u, Y - h - .22 * u]], '#ffe9a3');
   P(x, [[X - .14 * u, Y - h - .22 * u], [X + .14 * u, Y - h - .22 * u], [X, Y - h - .38 * u]], '#4a4a55');
 }
-const DESSINS = { arbre, pierre, maison, culture, meteo };
+const DESSINS = { arbre, pierre, maison, culture, meteo, caillou: pierre };
 
 export function dessinerChose(x, X, Y, u, a, T, o = {}) {
+  x.save();
+  if (a.propose) x.globalAlpha *= .5; // proposé d’après le texte, pas encore confirmé
   if (a.etats?.boucle && a.famille !== 'meteo') sentier(x, X, Y, u);
   if (a.etats?.double && a.famille !== 'meteo') DESSINS[a.famille](x, X + .34 * u, Y - .15 * u, u * .68, a, T, o);
   DESSINS[a.famille](x, X, Y, u, a, T, o);
-  if (a.etats?.lueur && !(a.famille === 'maison' && ['maison', 'volets'].includes(a.espece))) lanterne(x, X + (a.famille === 'meteo' && a.espece !== 'caillou' && a.espece !== 'etang' && a.espece !== 'fleurs' ? 0 : .42) * u, Y + .06 * u, u * .85, T);
+  if (a.etats?.lueur && !(a.famille === 'maison' && ['maison', 'volets'].includes(a.espece))) lueur(x, X + .38 * u, Y - (a.famille === 'arbre' ? .75 : .5) * u, u, T, X * .07 + Y * .05);
+  x.restore();
 }
 
 /* ───────── Le ciel, la mer, le socle ───────── */
@@ -382,20 +439,61 @@ function ciel(x, W, H, climat, T, r) {
   const c = CLIMATS[climat] || CLIMATS.N, g = x.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, c.ciel[0]); g.addColorStop(1, c.ciel[1]); x.fillStyle = g; x.fillRect(0, 0, W, H);
   if (c.astre === 'soleil') { halo(x, W * .82, H * .16, W * .16, 'rgba(255,240,150,A)', .55); E(x, W * .82, H * .16, W * .045, W * .045, '#ffe66d'); }
+  if (c.astre === 'brume') { halo(x, W * .74, H * .24, W * .24, 'rgba(255,246,228,A)', .8); E(x, W * .74, H * .24, W * .045, W * .045, 'rgba(255,250,240,.9)'); for (let k = 0; k < 3; k++) { const by = H * (.18 + k * .08) + Math.sin(T * .2 + k) * 3, g = x.createLinearGradient(0, by - H * .03, 0, by + H * .03); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, 'rgba(255,255,255,.3)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, by - H * .03, W, H * .06); } }
   if (c.astre === 'soir') { halo(x, W * .84, H * .3, W * .2, 'rgba(255,190,110,A)', .6); E(x, W * .84, H * .3, W * .055, W * .055, '#ffb45c'); }
   if (c.astre === 'crepuscule') { halo(x, W * .16, H * .34, W * .2, 'rgba(255,120,90,A)', .5); E(x, W * .16, H * .34, W * .05, W * .05, '#ff8a65'); x.fillStyle = 'rgba(255,255,255,.75)'; for (let k = 0; k < 9; k++) { x.beginPath(); x.arc(((r() * .9 + .05) * W), r() * H * .26, 1.1, 0, Math.PI * 2); x.fill(); } }
   for (let k = 0; k < 2; k++) { const cx = ((r() * W + T * 3 * speedK * (k + 1)) % (W + 120)) - 60, cy = H * (.08 + k * .09); nuage(x, cx, cy, W * .11, climat === 'ED' || climat === 'AD' ? COL.gris : COL.blanc); }
+  if (c.oiseaux) for (let k = 0; k < 3; k++) { // des oiseaux, qui passent
+    const bx = ((T * 11 * speedK + k * 150 + r() * 60) % (W + 80)) - 40, by = H * (.13 + k * .05) + Math.sin(T * .8 + k) * 5, fl = Math.sin(T * 7 * speedK + k * 2) * .35, s = 5 + k;
+    x.strokeStyle = 'rgba(60,50,60,.55)'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(bx - s, by + fl * s); x.quadraticCurveTo(bx - s * .4, by - s * .3, bx, by); x.quadraticCurveTo(bx + s * .4, by - s * .3, bx + s, by + fl * s); x.stroke();
+  }
 }
 
 function socle(x, o, climat, T, r) {
-  const c = CLIMATS[climat] || CLIMATS.N, z = -.12, e = .6;
+  const c = CLIMATS[climat] || CLIMATS.N, z = -.12, e = .35;
   const top = proj(o, -e, -e, z), right = proj(o, N + e, -e, z), bottom = proj(o, N + e, N + e, z), left = proj(o, -e, N + e, z), B = o.TH * 2.4;
-  P(x, [left, bottom, [bottom[0], bottom[1] + B], [left[0], left[1] + B]], COL.socle[0]);
-  P(x, [right, bottom, [bottom[0], bottom[1] + B], [right[0], right[1] + B]], COL.socle[1]);
-  P(x, [top, right, bottom, left], c.eau);
+  const g = x.createRadialGradient(o.ox, bottom[1] + B * .55, 0, o.ox, bottom[1] + B * .55, (right[0] - left[0]) * .55); // l’ombre portée du socle
+  g.addColorStop(0, 'rgba(30,20,10,.28)'); g.addColorStop(1, 'rgba(30,20,10,0)');
+  x.save(); x.translate(0, bottom[1] + B * .55); x.scale(1, .32); x.translate(0, -(bottom[1] + B * .55)); x.fillStyle = g; x.beginPath(); x.arc(o.ox, bottom[1] + B * .55, (right[0] - left[0]) * .55, 0, Math.PI * 2); x.fill(); x.restore();
+  const face = (a, b, tons, eauK) => { // une face du socle : la tranche d’eau, la terre, deux strates, la roche
+    const at = (p, k) => [p[0], p[1] + B * k];
+    P(x, [a, b, at(b, 1), at(a, 1)], tons[0]);
+    P(x, [at(a, .72), at(b, .72), at(b, 1), at(a, 1)], tons[1]);
+    L(x, [at(a, .5), at(b, .5)], 'rgba(40,25,15,.18)', 1);
+    P(x, [a, b, at(b, .26), at(a, .26)], nuance(c.eau, eauK));
+    L(x, [at(a, .26), at(b, .26)], 'rgba(255,255,255,.35)', 1);
+  };
+  face(left, bottom, ['#7a5a3d', '#5f4530'], -.18);
+  face(bottom, right, ['#634832', '#4c3625'], -.32);
+  const cx = (top[0] + bottom[0]) / 2, cy = (top[1] + bottom[1]) / 2, g2 = x.createRadialGradient(cx, cy, 0, cx, cy, (right[0] - left[0]) * .55);
+  g2.addColorStop(0, nuance(c.eau, .12)); g2.addColorStop(1, nuance(c.eau, -.12));
+  P(x, [top, right, bottom, left], g2);
   for (let k = 0; k < 34; k++) { // des facettes qui respirent
     const i = -e + r() * (N + 2 * e), j = -e + r() * (N + 2 * e), a = .05 + .07 * Math.sin(T * .8 * speedK + k), p = proj(o, i, j, z);
     P(x, [p, proj(o, i + .8, j, z), proj(o, i + .3, j + .7, z)], `rgba(255,255,255,${a})`);
+  }
+  for (let k = 0; k < 22; k++) { // des étincelles
+    const i = -e + r() * (N + 2 * e), j = -e + r() * (N + 2 * e), a = Math.max(0, Math.sin(T * 1.4 * speedK + k * 1.7)) * .7, p = proj(o, i, j, z);
+    L(x, [[p[0] - o.TW * .06, p[1]], [p[0] + o.TW * .06, p[1]]], `rgba(255,255,255,${a})`, 1.2);
+  }
+}
+
+// Le rivage : l’eau claire au bord de la terre, et l’écume.
+function rivage(x, o, m, rot, T) {
+  const z = -.12, terre = (i, j) => { if (i < 0 || j < 0 || i >= N || j >= N) return false; const [a, b] = src(i, j, rot); return !!m.land[a * N + b]; };
+  for (const [si, sj] of m.rive) { // l’eau claire, en halo doux
+    const [i, j] = vue(si, sj, rot), [X, Y] = proj(o, i + .5, j + .5, z), R = o.TW * .9;
+    const g = x.createRadialGradient(X, Y, 0, X, Y, R); g.addColorStop(0, 'rgba(215,250,244,.42)'); g.addColorStop(1, 'rgba(215,250,244,0)');
+    x.save(); x.translate(X, Y); x.scale(1, .5); x.translate(-X, -Y); x.fillStyle = g; x.beginPath(); x.arc(X, Y, R, 0, Math.PI * 2); x.fill(); x.restore();
+  }
+  for (const [si, sj] of m.rive) {
+    const [i, j] = vue(si, sj, rot);
+    const c = [i + .5, j + .5], aretes = [[[i + 1, j], [i + 1, j + 1], terre(i + 1, j)], [[i, j], [i, j + 1], terre(i - 1, j)], [[i, j + 1], [i + 1, j + 1], terre(i, j + 1)], [[i, j], [i + 1, j], terre(i, j - 1)]];
+    for (const [p, q, t] of aretes) {
+      if (!t) continue;
+      const k = .12 + .06 * Math.sin(T * 1.3 * speedK + i + j), a = proj(o, p[0] + (c[0] - p[0]) * k, p[1] + (c[1] - p[1]) * k, z), b = proj(o, q[0] + (c[0] - q[0]) * k, q[1] + (c[1] - q[1]) * k, z);
+      L(x, [a, b], `rgba(255,255,255,${.5 + .22 * Math.sin(T * 1.1 * speedK + i * 2 + j)})`, o.TW * .045);
+    }
   }
 }
 
@@ -408,7 +506,10 @@ export function dessinerIle(x, W, H, d, opts = {}, T = 0) {
   const o = { ox: W / 2, oy: opts.oy ?? H * .55 - (N * TH) / 2, TW, TH, HZ };
   const eau = (CLIMATS[d.climat] || CLIMATS.N).eau;
   if (!opts.sansCiel) ciel(x, W, H, d.climat, T, rng(m.seed + 9));
-  socle(x, o, d.climat, T, r);
+  if (!opts.sansSocle) socle(x, o, d.climat, T, r);
+  rivage(x, o, m, rot, T);
+  const decor = new Map();
+  for (const [si, sj, kind, dx, dy] of m.decor) { const [vi, vj] = vue(si, sj, rot); const k = vi * N + vj; (decor.get(k) || decor.set(k, []).get(k)).push([kind, dx, dy]); }
   const parTuile = new Map();
   for (const a of d.assets) { const [vi, vj] = vue(a.tile[0], a.tile[1], rot); const k = vi * N + vj; (parTuile.get(k) || parTuile.set(k, []).get(k)).push(a); }
   const hits = opts.hits || [];
@@ -432,19 +533,35 @@ export function dessinerIle(x, W, H, d, opts = {}, T = 0) {
       };
       if ((si + sj) % 2) { P(x, [p00, p10, p11], shade(p00, p10, p11, z00, z10, z11, i, j, i + 1, j, i + 1, j + 1)); P(x, [p00, p11, p01], shade(p00, p11, p01, z00, z11, z01, i, j, i + 1, j + 1, i, j + 1)); }
       else { P(x, [p00, p10, p01], shade(p00, p10, p01, z00, z10, z01, i, j, i + 1, j, i, j + 1)); P(x, [p10, p11, p01], shade(p10, p11, p01, z10, z11, z01, i + 1, j, i + 1, j + 1, i, j + 1)); }
+      const terre = (a, b) => { if (a < 0 || b < 0 || a >= N || b >= N) return false; const [sa, sb] = src(a, b, rot); return !!m.land[sa * N + sb]; };
+      if (!terre(i, j + 1)) { L(x, [p01, p11], tons[0], 1.3); L(x, [[lerp(p01[0], proj(o, i, j + 1, base)[0], .55), lerp(p01[1], proj(o, i, j + 1, base)[1], .55)], [lerp(p11[0], proj(o, i + 1, j + 1, base)[0], .55), lerp(p11[1], proj(o, i + 1, j + 1, base)[1], .55)]], 'rgba(60,40,25,.18)', 1); } // la lèvre d’herbe et une strate
+      if (!terre(i + 1, j)) { L(x, [p10, p11], tons[0], 1.3); L(x, [[lerp(p10[0], proj(o, i + 1, j, base)[0], .55), lerp(p10[1], proj(o, i + 1, j, base)[1], .55)], [lerp(p11[0], proj(o, i + 1, j + 1, base)[0], .55), lerp(p11[1], proj(o, i + 1, j + 1, base)[1], .55)]], 'rgba(60,40,25,.18)', 1); }
+      const dec = decor.get(i * N + j);
+      if (dec) for (const [kind, dx, dy] of dec) {
+        const zc = (z00 * (1 - dx) * (1 - dy) + z10 * dx * (1 - dy) + z01 * (1 - dx) * dy + z11 * dx * dy), [X, Y] = proj(o, i + dx, j + dy, zc);
+        if (kind === 'touffe') { L(x, [[X, Y], [X - .05 * TW, Y - .12 * TW]], COL.herbe[2], 1.2); L(x, [[X, Y], [X + .02 * TW, Y - .14 * TW]], COL.herbe[2], 1.2); L(x, [[X, Y], [X + .06 * TW, Y - .1 * TW]], COL.herbe[2], 1.2); }
+        else if (kind === 'galet') E(x, X, Y, .045 * TW, .03 * TW, COL.sable[2]);
+        else if (kind === 'paquerette' || kind === 'bouton') { x.fillStyle = kind === 'bouton' ? '#ffd166' : '#fffdf5'; x.beginPath(); x.arc(X, Y - .02 * TW, .028 * TW, 0, Math.PI * 2); x.fill(); }
+        else P(x, [[X - .05 * TW, Y], [X + .04 * TW, Y - .01 * TW], [X, Y - .07 * TW]], COL.roche[2]);
+      }
     }
     const zc = m.land[si * N + sj] ? tuileH(m, si, sj) : -.12;
     const ici = parTuile.get(i * N + j);
     if (ici) for (const a of ici) {
-      const [X, Y] = proj(o, i + .5, j + .5, zc), sc = pop(opts.vie?.get(a.key), T), u = TW * sc;
+      const [X, Y] = proj(o, i + .5, j + .5, zc), sc = pop(opts.vie?.get(a.key), T), u = TW * sc * ECHELLE, U = TW * ECHELLE;
+      if (opts.sel === a.key) { x.beginPath(); x.ellipse(X, Y + .04 * U, .5 * U, .24 * U, 0, 0, Math.PI * 2); x.fillStyle = 'rgba(255,255,255,.35)'; x.fill(); x.strokeStyle = 'rgba(255,255,255,.95)'; x.lineWidth = 2; x.stroke(); }
       dessinerChose(x, X, Y, u, a, T, { m, i: si, j: sj, eau });
-      if (opts.sel === a.key) { x.beginPath(); x.ellipse(X, Y + .06 * TW, .62 * TW, .3 * TW, 0, 0, Math.PI * 2); x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 2; x.stroke(); }
-      hits.push({ key: a.key, X, Y: Y - .5 * TW, r: TW * .75 });
+      hits.push({ key: a.key, X, Y: Y - .45 * U, r: U * .6 });
     }
-    if (d.phareTile && vue(d.phareTile[0], d.phareTile[1], rot).join() === [i, j].join()) { const [X, Y] = proj(o, i + .5, j + .5, zc); phare(x, X, Y, TW, T); hits.push({ key: 'phare', X, Y: Y - .7 * TW, r: TW }); }
+    if (d.phareTile && vue(d.phareTile[0], d.phareTile[1], rot).join() === [i, j].join()) { const [X, Y] = proj(o, i + .5, j + .5, zc), U = TW * ECHELLE; phare(x, X, Y, U, T); hits.push({ key: 'phare', X, Y: Y - .7 * U, r: U * .8 }); }
   }
-  const teinte = (CLIMATS[d.climat] || CLIMATS.N).teinte;
-  if (teinte && !opts.sansCiel) { x.save(); x.globalCompositeOperation = 'multiply'; x.fillStyle = teinte; x.fillRect(0, 0, W, H); x.restore(); }
+  const cl = CLIMATS[d.climat] || CLIMATS.N;
+  if (cl.teinte && !opts.sansCiel) { x.save(); x.globalCompositeOperation = 'multiply'; x.fillStyle = cl.teinte; x.fillRect(0, 0, W, H); x.restore(); }
+  if (cl.astre && !opts.sansCiel) { // une lumière douce, venue de l’astre
+    const [sx, sy] = cl.astre === 'soleil' ? [W * .82, H * .16] : cl.astre === 'soir' ? [W * .84, H * .3] : cl.astre === 'brume' ? [W * .74, H * .24] : [W * .16, H * .34], g = x.createRadialGradient(sx, sy, 0, sx, sy, W);
+    g.addColorStop(0, 'rgba(255,228,170,.26)'); g.addColorStop(1, 'rgba(255,228,170,0)');
+    x.save(); x.globalCompositeOperation = 'screen'; x.fillStyle = g; x.fillRect(0, 0, W, H); x.restore();
+  }
   return hits;
 }
 
@@ -453,22 +570,32 @@ export function dessinerIle(x, W, H, d, opts = {}, T = 0) {
 
 export function dessinerGraines(x, W, H, g, T, vie) {
   x.clearRect(0, 0, W, H);
-  const n = Math.max(3, Math.min(6, g.length)), cols = Math.min(3, n), rows = Math.ceil(n / cols);
-  const TW = Math.min(34, ((W - 24) / (cols + rows)) * 1.35), TH = TW / 2, bob = reduced ? 0 : Math.sin(T * .9) * 2;
-  const o = { ox: W / 2 - ((cols - rows) * TW) / 4, oy: H * .8 - ((cols + rows) * TH) / 2 + bob, TW, TH, HZ: TW * .42 };
-  const z = .3, base = -.25, B = TH * .9;
+  const n = Math.max(1, Math.min(6, g.length)), cols = n <= 2 ? n : n <= 4 ? 2 : 3, rows = Math.ceil(n / cols), k = cols + rows;
+  const TW = Math.min(54, ((W - 24) / k) * 1.3, (H - 10) / (k / 4 + 2.1)), TH = TW / 2, bob = reduced ? 0 : Math.sin(T * .9) * 2.5;
+  const z = 0, oyTop = H / 2 - ((k * TH) / 2 - .5 * TW) / 2 + bob;
+  const o = { ox: W / 2 - ((cols - rows) * TW) / 4, oy: oyTop, TW, TH, HZ: TW * .42 };
   const c = [proj(o, 0, 0, z), proj(o, cols, 0, z), proj(o, cols, rows, z), proj(o, 0, rows, z)];
-  P(x, [c[3], c[2], proj(o, cols, rows, base - .2), proj(o, 0, rows, base - .2)], COL.terre[0]);
-  P(x, [c[1], c[2], proj(o, cols, rows, base - .2), proj(o, cols, 0, base - .2)], COL.terre[1]);
-  P(x, [[c[3][0], c[3][1] + B * .1], [c[2][0], c[2][1] + B * .1], [c[2][0], c[2][1] + B], [c[3][0], c[3][1] + B]], 'rgba(0,0,0,0)');
+  const at = (p, dy) => [p[0], p[1] + dy], D = TH * .45; // la tranche de terre
+  const xc = (c[1][0] + c[3][0]) / 2, b3 = at(c[3], D), b2 = at(c[2], D), b1 = at(c[1], D), epaule = p => [xc + (p[0] - xc) * .8, p[1] + TW * .26];
+  const s3 = epaule(b3), s2 = epaule(b2), s1 = epaule(b1), pointe = [xc + TW * .05, b2[1] + TW * .56];
+  P(x, [b3, b2, s2, s3], '#a08f7f'); P(x, [s3, s2, pointe], '#8a7a6c'); // la roche, par facettes
+  P(x, [b2, b1, s1, s2], '#776a5e'); P(x, [s2, s1, pointe], '#63584e');
+  P(x, [c[3], c[2], at(c[2], D), at(c[3], D)], COL.terre[0]); P(x, [c[2], c[1], at(c[1], D), at(c[2], D)], COL.terre[1]);
+  L(x, [at(c[3], D * .55), at(c[2], D * .55), at(c[1], D * .55)], 'rgba(40,25,15,.2)', 1);
+  for (const [dx, dy, s2, ph] of [[-.62, .55, .1, 0], [.7, .75, .08, 2], [-.4, 1.05, .06, 4]]) { // des cailloux qui flottent avec lui
+    const px = o.ox + dx * TW * (k / 2.2), py = c[2][1] + dy * TW + Math.sin(T * 1.1 * speedK + ph) * 2.5;
+    pierreUne(x, px, py, s2 * TW * 2, s2 * TW * 1.3, ['#a39383', '#8b7d70', '#706459']);
+  }
   for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
     const p00 = proj(o, i, j, z), p10 = proj(o, i + 1, j, z), p11 = proj(o, i + 1, j + 1, z), p01 = proj(o, i, j + 1, z);
-    P(x, [p00, p10, p11], COL.herbe[(i + j) % 2 ? 0 : 1]); P(x, [p00, p11, p01], COL.herbe[(i + j) % 2 ? 1 : 2]);
+    P(x, [p00, p10, p11], COL.herbe[(i + j) % 2 ? 0 : 1]); P(x, [p00, p11, p01], COL.herbe[(i + j) % 2 ? 1 : 0]);
+    if (j === rows - 1) L(x, [p01, p11], '#c3ea7c', 1.4);
+    if (i === cols - 1) L(x, [p10, p11], '#c3ea7c', 1.4);
   }
   const hits = [];
-  g.slice(0, 6).forEach((a, k) => {
-    const i = k % cols, j = Math.floor(k / cols), [X, Y] = proj(o, i + .5, j + .5, z), sc = pop(vie?.get(a.key), T);
-    dessinerChose(x, X, Y, TW * .92 * sc, a, T, { m: null, i, j, eau: CLIMATS.N.eau });
+  g.slice(0, 6).forEach((a, kk) => {
+    const i = kk % cols, j = Math.floor(kk / cols), [X, Y] = proj(o, i + .5, j + .5, z), sc = pop(vie?.get(a.key), T);
+    dessinerChose(x, X, Y, TW * sc, a, T, { m: null, i, j, eau: CLIMATS.N.eau, bas: true });
     hits.push({ key: a.key, X, Y });
   });
   return hits;
@@ -509,12 +636,13 @@ export function archipelInvente(n = 62) {
 
 const vignettes = new Map();
 export function vignette(ile, d, taille = 88) {
-  const key = `${ile.id}:${ile.depots.length}:${taille}`;
+  const key = `${ile.id}:${ile.depots.length}:${taille}:mer`;
   if (vignettes.has(key)) return vignettes.get(key);
   const c = document.createElement('canvas'), dpr = Math.min(devicePixelRatio || 1, 2);
   c.width = Math.round(taille * dpr); c.height = Math.round(taille * .9 * dpr);
   const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
-  dessinerIle(x, taille, taille * .9, d, { TW: (taille - 4) / (N + 1.2), oy: taille * .42 - (N * ((taille - 4) / (N + 1.2))) / 4, sansCiel: true }, 0);
+  const TW = (taille - 2) / (N * .98);
+  dessinerIle(x, taille, taille * .9, d, { TW, oy: taille * .5 - (N * TW) / 4, sansCiel: true, sansSocle: true }, 0);
   vignettes.set(key, c);
   return c;
 }

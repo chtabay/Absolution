@@ -44,11 +44,12 @@
     for (const [famille, esp] of Object.entries(ESPECES)) {
       for (const q of ['AD', 'ED', 'AS', 'ES', 'N']) {
         const e = esp[q];
-        if (q === 'N' && esp.N === esp.AS && famille !== 'meteo') continue;
+        if (!e || (q === 'N' && esp.N === esp.AS)) continue;
         fig(NOMS[e][0], `${FAMILLES[famille].de}<br>${Q[q]}`, (x, X, Y, u) => dessinerChose(x, X, Y, u, base(famille, e, 1, {}, q), 1, { m: null, i: 1, j: 1, eau: CLIMATS.N.eau }));
       }
     }
     const S = (t, s, famille, espece, stade, etats = {}, quad = 'N') => fig(t, s, (x, X, Y, u) => dessinerChose(x, X, Y, u, base(famille, espece, stade, etats, quad), 1, { m: null, i: 1, j: 1, eau: CLIMATS.N.eau }));
+    S('un caillou', 'rien coché : il porte quand même les états', 'caillou', 'caillou', 1);
     S('jeune', 'récent', 'arbre', 'feuillu', 0); S('vieux', 'depuis longtemps', 'arbre', 'feuillu', 2); S('un bosquet', 'redit trois fois', 'arbre', 'feuillu', 3);
     S('un caillou', 'récent', 'pierre', 'pierre', 0); S('un rocher', 'depuis longtemps', 'pierre', 'pierre', 2); S('une pierre levée', 'redit trois fois', 'pierre', 'pierre', 3);
     S('une cabane', 'récent', 'maison', 'maison', 0); S('avec une annexe', 'redit', 'maison', 'maison', 2); S('un hameau', 'redit trois fois', 'maison', 'maison', 3);
