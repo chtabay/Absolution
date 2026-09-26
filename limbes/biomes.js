@@ -1,4 +1,4 @@
-// Limbes — maquette D : les paysages. Choisis par la personne quand elle commence une île.
+// Limbes : les paysages. Choisis par la personne quand elle commence une île.
 // Un paysage ne dit rien : il change les couleurs du sol, les essences, les maisons, les cultures et le petit décor.
 // Ce qui dit quelque chose reste la famille, l’espèce, la taille et l’état (grammaire.js).
 
@@ -6,7 +6,7 @@ export const BIOMES = {
   prairie: {
     nom: 'la prairie', dit: 'des herbes, des pâquerettes, des toits rouges',
     sol: { herbe: ['#a9db60', '#8fc74b', '#76b03c'], sable: ['#f3e3b4', '#e8d49f', '#d9c28a'], roche: ['#bcb4a8', '#a49b8e', '#8a8175'], neige: ['#ffffff', '#f1f4f7', '#dde3e8'] },
-    taches: ['#c9e27a', .16], falaise: ['#a07752', '#7f5c3d'], strates: [['#7a5a3d', '#5f4530'], ['#634832', '#4c3625']],
+    taches: ['#c9e27a', .16], falaise: ['#a07752', '#7f5c3d'],
     eau: null, lagon: '200,248,242',
     feuillu: { formes: ['rond', 'etage', 'peuplier'], tons: [['#b4e66a', '#84c94a', '#5f9e34'], ['#9fdc6e', '#72bd4c', '#4f9638'], ['#c3e57a', '#96c854', '#6fa33c']] },
     fleuri: { formes: ['rond', 'etage'], tons: [['#ffe1ea', '#f7b3c8', '#df8fab'], ['#fff7f2', '#f3dcd6', '#dcbdb5']] },
@@ -19,7 +19,7 @@ export const BIOMES = {
   automne: {
     nom: 'la forêt d’automne', dit: 'des feuilles rousses, des champignons, des souches',
     sol: { herbe: ['#c9c36c', '#b1ab55', '#958f41'], sable: ['#f1dfb2', '#e6d09c', '#d6bd86'], roche: ['#b9ae9f', '#9f9383', '#857a6b'], neige: ['#ffffff', '#f1f4f7', '#dde3e8'] },
-    taches: ['#e59a4c', .3], falaise: ['#9a6e4c', '#7a543a'], strates: [['#7d5a40', '#614532'], ['#664a35', '#4e3828']],
+    taches: ['#e59a4c', .3], falaise: ['#9a6e4c', '#7a543a'],
     eau: '#5aa6c2', lagon: '205,240,232',
     feuillu: { formes: ['rond', 'etage', 'etage'], tons: [['#ffb04a', '#f08a2c', '#c9661e'], ['#ff8a5c', '#e5603a', '#b8452a'], ['#ffd86a', '#f2b93e', '#cc9328'], ['#d8e070', '#b2bf4c', '#8a9638']] },
     fleuri: { formes: ['rond'], tons: [['#ffe6d6', '#f6c0a4', '#dd9a7c']] },
@@ -32,7 +32,7 @@ export const BIOMES = {
   tropique: {
     nom: 'l’île tropicale', dit: 'des palmiers, du sable blanc, un lagon',
     sol: { herbe: ['#86dc5a', '#68c448', '#50a83c'], sable: ['#fff3d6', '#f7e6ba', '#ecd49c'], roche: ['#cdbb9f', '#b3a085', '#98866c'], neige: ['#ffffff', '#f1f4f7', '#dde3e8'] },
-    taches: ['#a6ec78', .12], falaise: ['#c09268', '#9c7250'], strates: [['#b08a60', '#8e6c48'], ['#967250', '#76583c']],
+    taches: ['#a6ec78', .12], falaise: ['#c09268', '#9c7250'],
     eau: '#2fd0d4', lagon: '170,255,238',
     feuillu: { formes: ['palmier', 'palmier', 'rond'], tons: [['#8ee06a', '#5cc04a', '#3f9a3a']] },
     fleuri: { formes: ['hibiscus'], tons: [['#8ee06a', '#5cc04a', '#3f9a3a']] },
@@ -45,7 +45,7 @@ export const BIOMES = {
   neige: {
     nom: 'l’île enneigée', dit: 'de la neige, des sapins, des fenêtres chaudes',
     sol: { herbe: ['#fbfdff', '#eaf1f7', '#d6e2ec'], sable: ['#e3e9ef', '#d2dbe4', '#c0cbd6'], roche: ['#b4bec9', '#97a2ae', '#7c8793'], neige: ['#ffffff', '#f6f9fc', '#e6edf3'] },
-    taches: ['#dfe9f4', .22], falaise: ['#8d949e', '#6f7680'], strates: [['#7d848f', '#646a74'], ['#686e78', '#50555e']],
+    taches: ['#dfe9f4', .22], falaise: ['#8d949e', '#6f7680'],
     eau: '#86b4cc', lagon: '228,242,252',
     feuillu: { formes: ['rond', 'etage'], tons: [['#f4fafd', '#d5e7f0', '#afcbdc']] },
     fleuri: { formes: ['rond'], tons: [['#ffe8f0', '#f2c3d4', '#d99db2']] },
@@ -58,7 +58,7 @@ export const BIOMES = {
   lande: {
     nom: 'la lande', dit: 'de la bruyère, des bouleaux, des toits d’ardoise',
     sol: { herbe: ['#a3be70', '#8aa65c', '#71894a'], sable: ['#ebdfc4', '#ddcfb0', '#cbbc9a'], roche: ['#aaa9a1', '#8f8e87', '#75746e'], neige: ['#ffffff', '#f1f4f7', '#dde3e8'] },
-    taches: ['#a57dc4', .26], falaise: ['#8c7058', '#6c5644'], strates: [['#76604c', '#5c4a3a'], ['#62503f', '#4a3c30']],
+    taches: ['#a57dc4', .26], falaise: ['#8c7058', '#6c5644'],
     eau: '#5f9fb6', lagon: '205,236,240',
     feuillu: { formes: ['bouleau', 'bouleau', 'rond'], tons: [['#b7d98a', '#94bd66', '#739c4c']] },
     fleuri: { formes: ['rond'], tons: [['#eadcf7', '#cdb3ea', '#a88bcf']] },

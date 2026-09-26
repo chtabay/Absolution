@@ -1,4 +1,4 @@
-// Limbes — maquette D : la grammaire. Des cases aux graines.
+// Limbes : la grammaire. Des cases aux graines.
 //
 // Un dépôt (une confession) garde toutes ses cases. Rien n’est réduit à l’enregistrement :
 // l’île est recalculée à partir des dépôts, et une autre grammaire pourrait relire les mêmes dépôts.
@@ -8,7 +8,7 @@
 //   3. le temps    — depuis quand, et si ça revient                                  → la taille
 //   4. le silence  — qui le sait, et s’il y a un texte                               → l’état
 
-import { SUBJECTS, QUESTIONS } from './contenu.js?v=11';
+import { SUBJECTS, QUESTIONS } from './contenu.js?v=1';
 
 /* ───────── 1. Les familles ───────── */
 

@@ -1,9 +1,9 @@
-// Limbes — maquette E : les choses de l’île, en 3D. Des volumes à facettes, colorés par sommet,
-// fusionnés en peu de maillages. Mêmes familles, espèces, tailles, états, formes et paysages que la maquette D.
+// Limbes : les choses de l’île, en 3D. Des volumes à facettes, colorés par sommet, fusionnés en peu de maillages.
+// Chaque famille, espèce, taille et état de la grammaire a sa forme, et chaque paysage ses variantes.
 // Unité : une tuile = 1. Chaque chose est construite à son pied, en (0, 0, 0).
 
-import * as THREE from './vendor/three.min.js';
-import { BIOMES } from '../limbes-d/biomes.js?v=11';
+import * as THREE from './vendor/three.min.js?v=1';
+import { BIOMES } from './biomes.js?v=1';
 
 const B0 = BIOMES.prairie;
 const choix = (liste, v) => liste[Math.floor(Math.max(0, Math.min(.9999, v)) * liste.length) % liste.length];
