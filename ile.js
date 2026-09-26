@@ -1,8 +1,8 @@
 // L’archipel : l’île. La carte, le placement des choses, l’île recalculée depuis ses dépôts, les îles inventées de l’archipel.
 // Aucun dessin ici : le relief, la mer et la lumière sont dans monde.js, les choses dans modeles.js, les paysages dans biomes.js.
 
-import { pousser, especeDe } from './grammaire.js?v=1';
-import { KEYS, MOCK } from './contenu.js?v=1';
+import { pousser, especeDe } from './grammaire.js?v=2';
+import { KEYS, MOCK } from './contenu.js?v=2';
 import { rng, hash, melange } from './outils.js?v=1';
 import { BIOMES, BIOME_IDS, biomeDe } from './biomes.js?v=1';
 
@@ -54,6 +54,62 @@ export function carte(seed) {
 }
 export const sol = (m, i, j) => { const z = m.h[i * N + j]; return z < 0 ? 'eau' : z < .34 ? 'sable' : z < 1.3 ? 'herbe' : z < 2.05 ? 'roche' : 'neige'; };
 
+/* ───────── L’île grandit : la terre s’étend à chaque dépôt ───────── */
+// La carte ci-dessus est l’île pleine, celle d’après beaucoup de dépôts. Une île commence petite, au centre, et s’étend
+// tuile après tuile, toujours d’un seul tenant. La terre ne fait que s’ajouter : ce qui a poussé reste où il est.
+
+export const tuilesPour = (depots, choses) => 12 + 5 * depots + choses; // la taille d’une île dit ce qu’on y a déposé
+const ordres = new Map();
+function ordre(seed) { // l’ordre où les tuiles apparaissent : du centre vers le bord, un peu au hasard
+  if (ordres.has(seed)) return ordres.get(seed);
+  const m = carte(seed), c = (N - 1) / 2, R = Float32Array.from({ length: N * N }, (_, k) => Math.hypot(Math.floor(k / N) - c, (k % N) - c) + (hash(`${seed}:rang:${k}`) - .5) * 1.4);
+  let depart = -1;
+  for (let k = 0; k < N * N; k++) if (m.land[k] && (depart < 0 || R[k] < R[depart])) depart = k;
+  const pris = new Uint8Array(N * N), out = [], bord = new Set(depart < 0 ? [] : [depart]);
+  while (bord.size) {
+    let k = -1; for (const x of bord) if (k < 0 || R[x] < R[k]) k = x;
+    bord.delete(k); pris[k] = 1; out.push(k);
+    for (const [a, b] of voisins(Math.floor(k / N), k % N)) { const kk = a * N + b; if (m.land[kk] && !pris[kk]) bord.add(kk); }
+  }
+  ordres.set(seed, out);
+  return out;
+}
+export const tuilesPleines = seed => ordre(seed).length;
+const etapes = new Map();
+export function etape(seed, L) { // l’île avec ses L premières tuiles : son relief, sa rive, ses places pour le décor
+  const o = ordre(seed), n = Math.max(1, Math.min(o.length, Math.round(L))), cle = `${seed}:${n}`;
+  if (etapes.has(cle)) return etapes.get(cle);
+  const land = new Uint8Array(N * N); for (let t = 0; t < n; t++) land[o[t]] = 1;
+  const dist = new Int16Array(N * N).fill(99), file = [];
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { // la distance à l’eau ; le bord de la grille compte comme de l’eau
+    const k = i * N + j;
+    if (!land[k]) { dist[k] = 0; file.push(k); } else if (i === 0 || j === 0 || i === N - 1 || j === N - 1) { dist[k] = 1; file.push(k); }
+  }
+  for (let q = 0; q < file.length; q++) { const k = file[q]; for (const [a, b] of voisins(Math.floor(k / N), k % N)) { const kk = a * N + b; if (dist[kk] > dist[k] + 1) { dist[kk] = dist[k] + 1; file.push(kk); } } }
+  const h = new Float32Array(N * N);
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+    const k = i * N + j;
+    if (!land[k]) { h[k] = -1; continue; }
+    const dc = Math.max(1, dist[k]), colline = Math.max(0, 1 - Math.hypot((i - N * .27) / (N * .32), (j - N * .27) / (N * .32))); // la colline, au nord, loin du rivage
+    h[k] = Math.max(.15, .18 + (dc - 1) * .24 + (hash(`${seed}:h:${k}`) - .5) * .22 + colline * 1.35 * Math.min(1, (dc - 1) / 2));
+  }
+  const vh = new Float32Array((N + 1) * (N + 1));
+  for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+    let t = 0, c = 0;
+    for (const [di, dj] of [[-1, -1], [-1, 0], [0, -1], [0, 0]]) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= N || jj >= N || !land[ii * N + jj]) continue; t += h[ii * N + jj]; c++; }
+    vh[i * (N + 1) + j] = c ? (t / c) * (.88 + hash(`${seed}:v:${i}:${j}`) * .24) : 0;
+  }
+  const m = { N, h, vh, land, seed, rive: [], decor: [], taille: n, rayon: 0 };
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+    const k = i * N + j;
+    if (!land[k]) { if (voisins(i, j).some(([a, b]) => land[a * N + b])) m.rive.push([i, j]); continue; }
+    m.rayon = Math.max(m.rayon, Math.hypot(i + .5 - N / 2, j + .5 - N / 2) + .5);
+    for (let e = 0; e < 3; e++) { const x = f => hash(`${seed}:d:${k}:${e}:${f}`); m.decor.push([i, j, .18 + x(1) * .64, .18 + x(2) * .64, x(3), x(4)]); } // des places pour le décor, stables
+  }
+  etapes.set(cle, m);
+  return m;
+}
+
 /* ───────── Le placement : les quartiers ───────── */
 
 const QUARTIERS = { foret: [N * .28, N * .72], colline: [N * .26, N * .26], village: [N * .7, N * .7], champs: [N * .72, N * .3], centre: [N * .5, N * .5] };
@@ -89,21 +145,35 @@ function placer(m, occ, a, r) {
   if (!libre) { for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) if (m.land[i * N + j] && !occ.has(i * N + j)) return [i, j]; return [Math.floor(N / 2), Math.floor(N / 2)]; }
   return [libre[0], libre[1]];
 }
-const bout = m => { let best = null, bd = -1; for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) if (m.land[i * N + j] && sol(m, i, j) === 'sable' && i + j > bd) { bd = i + j; best = [i, j]; } return best || [N - 2, N - 2]; };
+const bout = (m, occ) => { // la pointe de sable la plus au sud-est, libre : la place du phare
+  let best = null, bd = -1;
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) if (m.land[i * N + j] && !occ.has(i * N + j) && sol(m, i, j) === 'sable' && i + j > bd) { bd = i + j; best = [i, j]; }
+  if (best) return best;
+  for (let i = N - 1; i >= 0; i--) for (let j = N - 1; j >= 0; j--) if (m.land[i * N + j] && !occ.has(i * N + j)) return [i, j];
+  return [N - 2, N - 2];
+};
 
 /* ───────── L’île : de ses dépôts à ses choses ───────── */
 
 export const nouvelleIle = (biome = 'prairie') => ({ id: Date.now(), seed: Math.floor(Math.random() * 1e9) + 1, nee: new Date().toISOString(), biome, depots: [], envoyee: false, quittee: null });
 
-// Recalcule tout depuis les dépôts, dans l’ordre : les positions ne bougent pas quand on ajoute.
-export function deriver(ile) {
-  const m = carte(ile.seed), etat = { assets: [], phare: null, climat: 'N' };
+// Recalcule tout depuis les dépôts, dans l’ordre. Chaque dépôt étend la terre, puis ce qu’il fait pousser se place
+// sur l’île telle qu’elle est à ce moment-là : les positions ne bougent pas quand on ajoute.
+// pleine : l’île entière, quels que soient ses dépôts (pour les aperçus des paysages et les îles au loin).
+export function deriver(ile, { pleine = false } = {}) {
+  const etat = { assets: [], phare: null, climat: 'N' }, occ = new Set(), r = rng(ile.seed + 11);
+  const carteApres = k => etape(ile.seed, pleine ? tuilesPleines(ile.seed) : tuilesPour(k, etat.assets.length));
   let dernier = null;
-  for (const d of ile.depots) dernier = pousser(etat, d, unpack(d.answers));
-  const occ = new Set(), r = rng(ile.seed + 11);
-  const phareTile = etat.phare ? bout(m) : null;
-  if (phareTile) occ.add(phareTile[0] * N + phareTile[1]);
-  for (const a of etat.assets) { a.tile = placer(m, occ, a, r); if (a.famille !== 'meteo' || a.espece === 'etang') occ.add(a.tile[0] * N + a.tile[1]); }
+  ile.depots.forEach((d, k) => {
+    dernier = pousser(etat, d, unpack(d.answers));
+    const m = carteApres(k + 1);
+    for (const a of etat.assets) if (!a.tile) { a.tile = placer(m, occ, a, r); if (a.famille !== 'meteo' || a.espece === 'etang') occ.add(a.tile[0] * N + a.tile[1]); }
+  });
+  const m = carteApres(ile.depots.length);
+  for (const a of etat.assets) if (a.espece === 'barque' && m.land[a.tile[0] * N + a.tile[1]]) { // la terre a gagné sur l’eau : la barque retourne au rivage
+    occ.delete(a.tile[0] * N + a.tile[1]); a.tile = placer(m, occ, a, r); occ.add(a.tile[0] * N + a.tile[1]);
+  }
+  const phareTile = etat.phare ? bout(m, occ) : null;
   return { ...etat, ile, m, phareTile, dernier };
 }
 
@@ -114,7 +184,7 @@ export function resume(d) {
   const qs = d.ile.depots.map(x => x.quad).filter(Boolean);
   const a = qs.length ? qs.reduce((s, q) => s + (q[0] === 'A' ? .85 : q === 'N' ? .45 : .2), 0) / qs.length : .45;
   const v = qs.length ? qs.reduce((s, q) => s + (q[1] === 'S' ? .85 : q === 'N' ? .4 : .2), 0) / qs.length : .4;
-  return { comptes, a, v, n: d.assets.length, phare: !!d.phare, climat: d.climat, paysage: d.ile.biome || 'prairie' };
+  return { comptes, a, v, n: d.assets.length, phare: !!d.phare, climat: d.climat, paysage: d.ile.biome || 'prairie', taille: d.m.taille };
 }
 
 /* ───────── L’archipel ───────── */
@@ -123,14 +193,15 @@ export function resume(d) {
 const SUJETS = ['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12', 's13', 's14'];
 const MOTS = { AD: ['colere', 'peur', 'angoisse', 'rage'], ED: ['honte', 'tristesse', 'vide', 'fatigue', 'culpa', 'solitude'], AS: ['envie', 'espoir'], ES: ['soulagement', 'calme'] };
 export function ileInventee(seed, quad) {
-  const r = rng(seed), ile = { id: seed, seed, nee: '', biome: BIOME_IDS[Math.floor(hash(`paysage:${seed}`) * BIOME_IDS.length)], depots: [], envoyee: true, quittee: null, autre: true };
+  // la graine passe par un hachage : des graines voisines donneraient sinon les mêmes premiers tirages, donc des îles pareilles
+  const r = rng(1 + Math.floor(hash(`inventee:${seed}`) * 2147483645)), ile = { id: seed, seed, nee: '', biome: BIOME_IDS[Math.floor(hash(`paysage:${seed}`) * BIOME_IDS.length)], depots: [], envoyee: true, quittee: null, autre: true };
   const n = 1 + Math.floor(r() ** 1.4 * 8);
   for (let k = 0; k < n; k++) {
     const q = r() < .75 ? quad : ['AD', 'ED', 'AS', 'ES'][Math.floor(r() * 4)];
     const answers = { situ: [], mots: [MOTS[q][Math.floor(r() * MOTS[q].length)]], sujets: [], fait: [], subi: [] };
     if (r() < .85) answers.sujets.push(SUJETS[Math.floor(r() * SUJETS.length)]);
     if (r() < .25) answers.sujets.push(SUJETS[Math.floor(r() * SUJETS.length)]);
-    for (const [id, p] of [['longtemps', .35], ['jamais', .3], ['boucle', .3], ['regret', .3], ['mal', .2], ['recent', .2], ['personne', .2]]) if (r() < p) answers.situ.push(id);
+    for (const [id, p] of [['longtemps', .35], ['jamais', .3], ['boucle', .3], ['regret', .3], ['mal', .2], ['recent', .2]]) if (r() < p) answers.situ.push(id);
     if (answers.situ.includes('mal') && r() < .6) answers.subi.push(['slong', 'scont', 'sparle', 'sresp'][Math.floor(r() * 4)]);
     if (answers.situ.includes('regret') && r() < .6) answers.fait.push(['flong', 'fplus', 'fsouff', 'frep', 'fpense'][Math.floor(r() * 5)]);
     ile.depots.push({ id: k + 1, quad: q, texte: r() < .5, answers });

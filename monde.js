@@ -3,12 +3,13 @@
 // La carte et les dépôts viennent de ile.js : l’île est recalculée à partir de ses dépôts.
 
 import * as THREE from './vendor/three.min.js?v=1';
-import { N, CLIMATS, eauDe, sol, carte, deriver } from './ile.js?v=1';
+import { N, CLIMATS, eauDe, sol, carte, deriver } from './ile.js?v=2';
 import { biomeDe, BIOMES } from './biomes.js?v=1';
 import { hash, melange, versHex, nuance } from './outils.js?v=1';
-import { Bati, MAT, modeleChose, modelePhare, decor, halo, nuageBati, F, G, cone, cyl, baton } from './modeles.js?v=1';
+import { Bati, MAT, modeleChose, modelePhare, decor, halo, nuageBati, F, G, cone, cyl, baton } from './modeles.js?v=2';
 
 const reduit = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+export const ECH_ARCH = .45; // la taille des îles dans l’archipel : la même pour toutes, pour que leurs tailles se comparent
 const YS = .82, MARGE = 2.5, ECH = 1.35, NIV = .02, lerp = (a, b, t) => a + (b - a) * t, lisse = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const pop = (t, T) => { if (t == null || reduit) return 1; const p = Math.max(0, Math.min(1, (T - t) / .7)) - 1; return 1 + 2.7 * p * p * p + 1.7 * p * p; };
 const tirer = (table, r) => { const tot = table.reduce((s, [, w]) => s + w, 0); let t = r * tot; for (const [k, w] of table) { if (t < w) return k; t -= w; } return table[0]?.[0]; };
@@ -258,7 +259,8 @@ export class Vue3D {
     this.rendu.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
     const fit = (larg, haut) => Math.max(haut / (2 * Math.tan(this.camera.fov * Math.PI / 360)), larg / (2 * Math.tan(this.camera.fov * Math.PI / 360) * this.camera.aspect));
     const [L, P] = this.dimsArch;
-    this.distIle = fit(N * 1.02, N * .62); this.distArch = fit(L * 1.2 + 4, (P * 1.24 + 4) * Math.sin(.72));
+    const e = this.etendue || N * 1.02; // l’île se cadre selon sa taille : une petite île se voit petite, dans sa mer
+    this.distIle = fit(e, e * .62); this.distArch = fit(L * 1.2 + 4, (P * 1.24 + 4) * Math.sin(.72));
     if (this.mode === 'ile' && !this.zoomManuel) this.orbite.but.dist = this.distIle;
   }
   vider() { if (this.scene) { liberer(this.scene); this.scene.background?.dispose?.(); } this.scene = new THREE.Scene(); this.anims = []; this.objets = new Map(); }
@@ -269,6 +271,8 @@ export class Vue3D {
     if (this.mode === 'ile' && this.cle === cle) return;
     const premiere = this.mode !== 'ile';
     this.mode = 'ile'; this.cle = cle; this.vider();
+    this.etendue = Math.max(d.m.rayon * 2 + .6, N * .88); const cibleY = .3 + .08 * this.etendue; // une jeune île se voit petite dans sa mer, puis la remplit
+    this.redim(); if (!premiere) this.orbite.but.cible.y = cibleY;
     const s = this.scene, cl = CLIMATS[d.climat] || CLIMATS.N;
     const T = teintes(d.climat, B), D = this.distIle || 20;
     s.background = fondCiel(d.climat); s.fog = new THREE.Fog(T.brume, D * (d.climat === 'ED' ? 1.1 : 1.5), D * (d.climat === 'ED' ? 3.6 : 4.8));
@@ -287,10 +291,10 @@ export class Vue3D {
     const nu = nuages(4, d.climat === 'ED' || d.climat === 'AD', 12, d.ile.seed % 7); s.add(nu.grp); this.anims.push(nu.anim);
     if (cl.oiseaux) { const oi = oiseaux(3, 6.5); s.add(oi.grp); this.anims.push(oi.anim); }
     const sc = scintillements(16, 12); s.add(sc.grp); this.anims.push(sc.anim);
-    for (let k = 0; k < 3; k++) { const far = ileStatique(deriver({ id: `loin${k}`, seed: d.ile.seed + 101 * (k + 1), biome: d.ile.biome, depots: [] }), .3, 2, fondUni(T)), an = 2.2 + k * 1.3; far.position.set(Math.cos(an) * (30 + k * 8), 0, Math.sin(an) * (30 + k * 8)); far.scale.setScalar(.6); s.add(far); } // d’autres îles, au loin
+    for (let k = 0; k < 3; k++) { const far = ileStatique(deriver({ id: `loin${k}`, seed: d.ile.seed + 101 * (k + 1), biome: d.ile.biome, depots: [] }, { pleine: true }), .3, 2, fondUni(T)), an = 2.2 + k * 1.3; far.position.set(Math.cos(an) * (30 + k * 8), 0, Math.sin(an) * (30 + k * 8)); far.scale.setScalar(.6); s.add(far); } // d’autres îles, au loin
     this.anneau = new THREE.Mesh(new THREE.TorusGeometry(.5, .025, 4, 32), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .9 })); this.anneau.rotation.x = Math.PI / 2; this.anneau.visible = false; s.add(this.anneau);
     this.orbite.limites = { elev: [.2, 1.1], dist: [7, 34] }; this.orbite.auto = true;
-    if (premiere) { this.zoomManuel = false; this.redim(); Object.assign(this.orbite.but, { elev: .44, dist: this.distIle }); this.orbite.but.cible.set(0, 1.1, 0); this.orbite.dist = this.distIle * 1.25; this.orbite.cible.set(0, 1.1, 0); }
+    if (premiere) { this.zoomManuel = false; this.redim(); Object.assign(this.orbite.but, { elev: .44, dist: this.distIle }); this.orbite.but.cible.set(0, cibleY, 0); this.orbite.dist = this.distIle * 1.25; this.orbite.cible.set(0, cibleY, 0); }
   }
   tourner() { this.orbite.but.azim += Math.PI / 2; this.orbite.repos = 0; }
   choisir(cle) {
@@ -316,7 +320,7 @@ export class Vue3D {
     this.prochaine = (performance.now() - this.t0) / 1000 + 3;
   }
   ajouterIle(it, depuis = null) {
-    const grp = ileStatique(it.d || (it.d = deriver(it.ile)), .35, 3, this.fondArch), e = it.mine ? .52 : .45;
+    const grp = ileStatique(it.d || (it.d = deriver(it.ile)), .35, 3, this.fondArch), e = ECH_ARCH;
     grp.scale.setScalar(e); grp.position.set(it.x, 0, it.z); grp.traverse(o => { o.userData.ile = it; });
     this.scene.add(grp); it.grp = grp;
     if (it.mine) { const lab = etiquette(it.label || 'la tienne'); lab.position.set(it.x, 2.6, it.z); this.scene.add(lab); it.lab = lab; }
@@ -328,7 +332,7 @@ export class Vue3D {
   }
   viser(it) { // s’approcher d’une île, ou revenir à l’archipel
     this.focus = it;
-    if (it) { this.orbite.but.cible.set(it.x, .3, it.z); this.orbite.but.dist = 11; this.orbite.but.elev = .62; this.anneau.visible = true; this.anneau.position.set(it.x, .03, it.z); this.anneau.scale.setScalar(it.mine ? 1.2 : 1); }
+    if (it) { const ray = (it.d || (it.d = deriver(it.ile))).m.rayon * ECH_ARCH; this.orbite.but.cible.set(it.x, .3, it.z); this.orbite.but.dist = 5 + ray * 2.6; this.orbite.but.elev = .62; this.anneau.visible = true; this.anneau.position.set(it.x, .03, it.z); this.anneau.scale.setScalar((ray + .35) / 2.6); }
     else { this.orbite.but.cible.set(0, 0, -1); this.orbite.but.dist = this.distArch; this.orbite.but.elev = .72; this.anneau.visible = false; }
   }
 
@@ -359,15 +363,30 @@ export class Ilot3D {
   constructor(canvas) {
     this.canvas = canvas; this.rendu = creerRendu(canvas, { alpha: true, ombres: true });
     this.scene = new THREE.Scene(); this.camera = new THREE.PerspectiveCamera(28, 2, .1, 50);
-    const sun = new THREE.DirectionalLight('#fff4e4', 2.2); sun.position.set(3, 6, 4); sun.castShadow = true; sun.shadow.mapSize.set(512, 512); Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: .5, far: 20 }); sun.shadow.normalBias = .02;
+    const sun = this.sun = new THREE.DirectionalLight('#fff4e4', 2.2); sun.position.set(3, 6, 4); sun.castShadow = true; sun.shadow.mapSize.set(512, 512); Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: .5, far: 20 }); sun.shadow.normalBias = .02;
     this.scene.add(sun, new THREE.HemisphereLight('#eef8ff', '#e2d2b8', 1.6));
     this.groupe = new THREE.Group(); this.scene.add(this.groupe); this.anims = []; this.cle = null; this.brule = null; this.t0 = performance.now(); this.objets = [];
   }
   redim() { const w = this.canvas.clientWidth || 300, h = this.canvas.clientHeight || 120; this.rendu.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); this.cadrer(); }
-  cadrer() { const r = this.rayon || .6, d = Math.max((1.9 + r) / (2 * Math.tan(this.camera.fov * Math.PI / 360)), (2 * r + .8) / (2 * Math.tan(this.camera.fov * Math.PI / 360) * this.camera.aspect)); this.camera.position.set(0, .3 + d * Math.sin(.32), d * Math.cos(.32)); this.camera.lookAt(0, .35, 0); }
-  maj(graines, B, seed, vie) {
+  cadrer(doux = false) { // la caméra suit ce qui est posé : un caillou seul se voit de près, un arbre et un nuage de plus loin
+    const b = this.boite, t = 2 * Math.tan(this.camera.fov * Math.PI / 360);
+    const rayon = b ? Math.max(-b.min.x, b.max.x, -b.min.z, b.max.z) : .8, bas = b ? b.min.y : -1, haut = (b ? b.max.y : 1.2) + rayon * .35; // vu d’un peu haut, le bord du fond de l’îlot monte
+    this.visee = { d: Math.max((haut - bas) * 1.16 / t, (2 * rayon * 1.2) / (t * this.camera.aspect)), y: (haut + bas) / 2 };
+    if (!doux || !this.vise) this.vise = { ...this.visee };
+    this.placer();
+  }
+  placer() { const { d, y } = this.vise; this.camera.position.set(0, y + d * Math.sin(.3), d * Math.cos(.3)); this.camera.lookAt(0, y, 0); }
+  mesurer(ech) { // la boîte de ce qui est posé, sans les cailloux qui tournent autour ni les lumières
+    this.groupe.rotation.y = 0; this.groupe.position.y = 0; this.groupe.scale.setScalar(1);
+    for (const o of this.objets) o.scale.setScalar(ech);
+    this.groupe.updateMatrixWorld(true);
+    const boite = new THREE.Box3(), une = new THREE.Box3();
+    this.groupe.traverse(o => { if (!o.isMesh || this.cailloux.includes(o) || (o.material?.transparent && o.material !== MAT.propose)) return; une.setFromObject(o); boite.union(une); });
+    this.boite = boite.isEmpty() ? null : boite;
+  }
+  maj(graines, B, seed, vie, signes = {}) { // signes : { phare, lourd } ; le danger allume un phare, « pas bien du tout » couvre le ciel
     this.vie = vie;
-    const cle = `${B === BIOMES.neige}:${Object.keys(BIOMES).find(k => BIOMES[k] === B)}:${seed}:${graines.map(g => `${g.key}/${g.espece}/${g.stade}/${g.propose ? 1 : 0}/${Object.entries(g.etats).filter(([, v]) => v).map(([k]) => k).join('+')}`).join(',')}`;
+    const cle = `${B === BIOMES.neige}:${Object.keys(BIOMES).find(k => BIOMES[k] === B)}:${seed}:${signes.phare ? 'phare' : ''}:${signes.lourd ? 'lourd' : ''}:${graines.map(g => `${g.key}/${g.espece}/${g.stade}/${g.propose ? 1 : 0}/${Object.entries(g.etats).filter(([, v]) => v).map(([k]) => k).join('+')}`).join(',')}`;
     if (cle === this.cle) return;
     this.cle = cle;
     liberer(this.groupe); this.groupe.clear(); this.anims = []; this.objets = [];
@@ -375,7 +394,8 @@ export class Ilot3D {
     const b = new Bati(seed % 97 + 1), k = { b, s: 1 };
     F(k, cyl(r, r * .97, 12), B.sol.herbe[0], { y: -.03, sy: .06, ao: 0, varie: .05 });
     F(k, cyl(r * .97, r * .9, 12), B.falaise[0], { y: -.12, sy: .13, ao: .3 });
-    F(k, cone(9), B.enneige ? '#b9c3cf' : '#b8a896', { y: -.62, sx: r * .9, sy: .9 + r * .3, sz: r * .9, rx: Math.PI, bosse: .12, graine: 3, ao: .35 });
+    const hc = .5 + r * .25; // le cône sous l’îlot, plus court qu’avant : l’îlot prend plus de place dans son cadre
+    F(k, cone(9), B.enneige ? '#b9c3cf' : '#b8a896', { y: -.19 - hc / 2, sx: r * .9, sy: hc, sz: r * .9, rx: Math.PI, bosse: .12, graine: 3, ao: .35 });
     const rr = n => { const r2 = (n * 16807 % 2147483647) / 2147483647; return r2; };
     for (let i = 0; i < 7; i++) { const an = i * 2.4, d = r * (.35 + rr(i + seed) * .55); decor(b, tirer(B.decor.herbe, rr(i * 7 + seed)), B, Math.cos(an) * d, 0, Math.sin(an) * d, rr(i * 3 + 1)); }
     const socle = b.maillage(); this.groupe.add(socle);
@@ -385,11 +405,22 @@ export class Ilot3D {
       const [x, z] = places[i], m = modeleChose(a, B, hash(`${a.key}:${seed}`), { bas: true, propose: a.propose, eauHex: eauDe('N', B) });
       m.objet.position.set(x, 0, z); m.objet.userData.cle = a.key; m.objet.userData.ech = ech; this.groupe.add(m.objet); this.objets.push(m.objet); this.anims.push(...m.anims);
     });
-    this.cadrer();
+    if (signes.phare) { // en danger : un phare au bord de l’îlot, pour parler à quelqu’un
+      const p = modelePhare(); p.objet.position.set(r * .8, 0, -r * .3); p.objet.scale.setScalar(.5); this.groupe.add(p.objet); this.anims.push(...p.anims);
+    }
+    this.mesurer(ech);
+    if (signes.lourd) { // pas bien du tout : un nuage gris juste au-dessus de ce qui a poussé, et moins de soleil
+      const nb = new Bati(9); nuageBati({ b: nb, s: 1 }, 0, 0, 0, .7, ['#b9c0c9', '#98a1ac']);
+      const nu = nb.maillage(); nu.position.set(0, Math.max(.75, (this.boite?.max.y ?? .5) + .32), 0); nu.castShadow = true; this.groupe.add(nu);
+      this.mesurer(ech);
+    }
+    this.sun.intensity = signes.lourd ? 1.35 : 2.2;
+    this.cadrer(true);
   }
   bruler() { this.brule = (performance.now() - this.t0) / 1000; }
   frame() {
     const T = (performance.now() - this.t0) / 1000;
+    if (this.visee && this.vise) { const k = reduit ? 1 : .08; this.vise.d += (this.visee.d - this.vise.d) * k; this.vise.y += (this.visee.y - this.vise.y) * k; this.placer(); }
     this.groupe.rotation.y = reduit ? .5 : T * .22;
     this.groupe.position.y = reduit ? 0 : Math.sin(T * .9) * .04;
     this.cailloux?.forEach((c, i) => { const a = T * .3 + i * 2.1, r = (this.rayon || .6) * 1.25; c.position.set(Math.cos(a) * r, -.35 - i * .15 + Math.sin(T + i) * .05, Math.sin(a) * r); c.rotation.y = T * .5 + i; });
@@ -408,7 +439,7 @@ export function apercu(cible, biome, depots) { // une petite île d’exemple, r
   if (!atelier) { const c = document.createElement('canvas'); c.width = 280; c.height = 252; atelier = { c, r: creerRendu(c, { alpha: false, ombres: true }), cam: new THREE.PerspectiveCamera(30, 280 / 252, .1, 200) }; atelier.r.setPixelRatio(1); atelier.r.setSize(280, 252, false); }
   const s = new THREE.Scene(), eau = eauDe('N', BIOMES[biome]); s.background = new THREE.Color('#5cc6de'); s.fog = new THREE.Fog('#8fd9ea', 20, 60);
   const T = teintes('N', BIOMES[biome]); soleil(s, 'N', 8); s.add(fondMarin(T, 40), mer(T, 40));
-  const ex = { id: `apercu:${biome}`, seed: 90210, biome, depots }, ile = ileStatique(deriver(ex), .8, 2, fondIle(T)); s.add(ile);
+  const ex = { id: `apercu:${biome}`, seed: 90210, biome, depots }, ile = ileStatique(deriver(ex, { pleine: true }), .8, 2, fondIle(T)); s.add(ile);
   atelier.cam.position.set(9.5, 9.5, 9.5); atelier.cam.lookAt(0, .2, 0);
   atelier.r.render(s, atelier.cam);
   const x = cible.getContext('2d'), w = cible.width, h = cible.height; x.drawImage(atelier.c, 0, 0, w, h);

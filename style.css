@@ -18,22 +18,7 @@
   --accent-soft: #e6f0ec;
   --warm: #d98d55;
   --sans: Nunito, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1d1b19;
-    --card: #27241f;
-    --ink: #f1ece4;
-    --muted: #b5ac9f;
-    --dim: #837b6f;
-    --line: #3a352f;
-    --line-hi: #4d463e;
-    --accent: #7fb8a3;
-    --accent-ink: #cfe6dc;
-    --accent-soft: #2b3a34;
-    color-scheme: dark;
-  }
+  color-scheme: only light; /* toujours clair, même quand le téléphone est en mode sombre */
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -368,7 +353,7 @@ textarea:focus { outline: none; border-color: var(--accent); }
   margin: .2rem auto 0;
   padding-inline: 1.1rem;
 }
-.companion canvas { display: block; width: 100%; height: 8rem; }
+.companion canvas { display: block; width: 100%; height: 9.5rem; }
 .ent-ligne { min-height: 1.2rem; text-align: center; font-size: .82rem; } /* sous l’îlot, jamais dessus */
 .ent-ligne p { margin: 0; }
 .ent-hint { color: var(--dim); }

@@ -6,7 +6,7 @@ Un endroit où l’on peut tout déposer, sans jugement. On coche quelques cases
 
 ## Le parcours
 
-1. **Les questions.** Quelques cases à cocher. En haut, un îlot montre en direct ce que les cases feraient pousser.
+1. **Les questions.** Quelques cases à cocher. En haut, un îlot montre en direct ce que les cases feraient pousser. Chaque case de la première question s’y voit : la terre qui recouvre ce qui n’a jamais été dit, le sentier de ce qui tourne en boucle, la taille selon l’ancienneté, un nuage gris quand on ne va pas bien du tout, un phare quand il y a un danger.
 2. **Par où aller ?** Parler à quelqu’un, écrire, le dire en trois lignes, juste le poser, ou voir son île.
 3. **La page.** Des débuts de phrases tirés des cases. Le texte est lu sur le téléphone, pour proposer des sujets. Si des mots inquiètent, des numéros d’écoute s’affichent.
 4. **Terminer.** Poser sur l’île, avec le texte gardé sur le téléphone si on veut, ou brûler.
@@ -23,7 +23,7 @@ Une confession ne se réduit pas à quelques nombres. Elle garde toutes ses case
 | **1. La place** (d’où ça vient) | le sujet coché, déplacé par « on m’a fait du mal » ou la question de plus | **la famille** : *reçu*, un arbre, dans la forêt ; *commis ou voulu*, une pierre, sur la colline ; *entre vous*, une construction, dans le village ; *soi et ce qui vient*, une culture, dans les champs ; *une sensation sans sujet*, le temps qu’il fait |
 | **2. La sensation** (comment c’est ressenti) | le quadrant des mots : agité ou éteint, douloureux ou supportable | **l’espèce** : voir le tableau ci-dessous |
 | **3. Le temps** (depuis quand) | récent, depuis longtemps, il y a longtemps ; plus d’une fois, ça continue | **la taille** : jeune, adulte, vieux ; un sujet redit grandit d’un cran (bosquet, pierre levée, hameau, moulin) ; « plus d’une fois » met en deux |
-| **4. Le silence** (qui le sait) | jamais dit, personne ne le sait, cette personne ne le sait pas, jamais parlé ; et la présence d’un texte | **l’état** : fermé (un creux, enterrée, porte close, couvert, en friche) ; une lueur s’il y a un texte, jamais son contenu |
+| **4. Le silence** (qui le sait) | jamais dit, cette personne ne le sait pas, jamais parlé ; et la présence d’un texte | **l’état** : fermé (un creux, enterrée, porte close, couvert, en friche) ; une lueur s’il y a un texte, jamais son contenu |
 
 Les espèces, famille par sensation :
 
@@ -44,7 +44,8 @@ Les autres cases : *ça tourne en boucle*, un sentier usé autour ; *ça continu
 - **Le texte propose, la personne confirme.** Les sujets repérés dans le texte apparaissent en transparence dans les graines, puis à cocher ou non avant de poser. Le texte donne aussi la sensation quand aucun mot n’est coché.
 - **Un sujet redit fait grandir**, jamais une deuxième chose. Les arbres et les pierres suivent la sensation du jour. Une construction ou une culture garde son espèce.
 - **Le climat** de l’île suit la dernière confession : grand jour, jour ordinaire, soir doux, crépuscule, brume du matin.
-- **Le placement** est par quartiers : la forêt, la colline de pierres, le village, les champs ; les barques à la rive, les cailloux sur la plage. Les positions ne bougent pas quand on ajoute.
+- **L’île grandit avec ce qu’on y dépose.** Une île vide est un îlot. Chaque dépôt étend la terre, tuile après tuile, depuis le centre, jusqu’à l’île pleine après six ou sept dépôts. Une île finie a donc la taille de ce qu’on y a laissé, dans sa vue comme dans l’archipel.
+- **Le placement** est par quartiers : la forêt, la colline de pierres, le village, les champs ; les barques à la rive, les cailloux sur la plage. Ce que fait pousser un dépôt se place sur l’île telle qu’elle est à ce moment-là. La terre ne fait que s’ajouter, donc les positions ne bougent pas. Seules les barques suivent le rivage quand il s’éloigne.
 
 ## Les paysages et les formes
 
@@ -56,7 +57,8 @@ La personne choisit le **paysage** en commençant une île, avec un aperçu en 3
 - **La mer.** Transparente, claire près de l’île, bleue au large. Elle garde son bleu sous les lumières du soir.
 - **La lumière.** Un soleil aux ombres douces, une lumière du ciel et une brume, réglés pour chaque climat.
 - **Le mouvement.** L’île tourne du doigt, et seule quand on la laisse. Des nuages passent, des oiseaux tournent, le phare balaie, les moulins tournent, les barques tanguent.
-- **L’archipel.** Cadré pour un téléphone tenu droit. Il n’a pas d’ombres, pour rester léger : environ 126 000 triangles pour 28 îles, contre 30 000 pour une île seule.
+- **L’archipel.** Cadré pour un téléphone tenu droit. Toutes les îles y ont la même échelle, pour que leurs tailles se comparent. Il n’a pas d’ombres, pour rester léger.
+- **Toujours clair.** L’application garde ses couleurs claires, même quand le téléphone est en mode sombre.
 
 Sans WebGL, la page reste utilisable : l’île et l’archipel ne s’affichent pas, et ce qui a poussé reste écrit en mots.
 

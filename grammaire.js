@@ -8,7 +8,7 @@
 //   3. le temps    — depuis quand, et si ça revient                                  → la taille
 //   4. le silence  — qui le sait, et s’il y a un texte                               → l’état
 
-import { SUBJECTS, QUESTIONS } from './contenu.js?v=1';
+import { SUBJECTS, QUESTIONS } from './contenu.js?v=2';
 
 /* ───────── 1. Les familles ───────── */
 
@@ -67,7 +67,7 @@ export function stadeDe(a) {
 
 export function etatsDe(a, texte) {
   return {
-    ferme: a.situ.has('jamais') || a.situ.has('personne') || a.fait.has('fsait') || a.subi.has('sparle'), // fermé : jamais dit
+    ferme: a.situ.has('jamais') || a.situ.has('personne') || a.fait.has('fsait') || a.subi.has('sparle'), // fermé : jamais dit (« personne », une ancienne case, reste lu pour les dépôts d’avant)
     lueur: !!texte, // il y a un texte : une lumière, jamais son contenu
     boucle: a.situ.has('boucle'), // ça tourne : un sentier usé autour
     double: a.fait.has('fplus') || a.subi.has('scont'), // plus d’une fois : en deux exemplaires
