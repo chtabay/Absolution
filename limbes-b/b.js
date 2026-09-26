@@ -1,5 +1,6 @@
 // Limbes — maquette B : trois questions à cocher, puis on voit.
 // Tout reste sur cet appareil ; rien ne part. Les chiffres de « où tu es » sont inventés.
+// Les cases réordonnent la suite, n’enlèvent rien, et peuvent ouvrir une question de plus.
 
 const $ = s => document.querySelector(s);
 const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
@@ -16,10 +17,13 @@ const SUBJECTS = [
   ['alcool, drogue, addiction', 2, 1, 2], ['santé mentale', 0, 1, 2], ['corps, apparence', 0, 0, 1], ['ce qu’on m’a fait', 0, 2, 0],
   ['deuil, perte', 0, 2, 0], ['ce que je suis, ce que je crois', 0, 1, 2], ['un rêve, une envie', 0, 0, 3],
 ];
+const MORAL = ['s0', 's1', 's2', 's8', 's3', 's6', 's7']; // du plus au moins moral
 
-// Les trois questions. Chaque case peut porter une amorce pour la page, ou un signal pour l’aide.
-const Q = [
-  { key: 'Là, maintenant', title: 'Là, maintenant…', hint: 'Coche ce qui te ressemble. Plusieurs cases, ou aucune.', items: [
+// Les questions. Chaque case peut porter une amorce pour la page, ou un signal pour l’aide.
+// `boost` réordonne les cases d’après ce qui est déjà coché ; `when` ouvre une question de plus.
+const bump = (scores, ids, n) => ids.forEach(id => { scores[id] = (scores[id] || 0) + n; });
+const QUESTIONS = {
+  situ: { key: 'Là, maintenant', title: 'Là, maintenant…', hint: 'Coche ce qui te ressemble. Plusieurs cases, ou aucune.', items: [
     { id: 'jamais', label: 'Il y a quelque chose que je n’ai jamais dit', chip: 'Je n’ai jamais dit que…', starter: 'Je n’ai jamais dit que ' },
     { id: 'regret', label: 'J’ai fait quelque chose que je regrette', chip: 'J’ai…', starter: 'J’ai ' },
     { id: 'mal', label: 'On m’a fait du mal', chip: 'On m’a…', starter: 'On m’a ', soft: true },
@@ -31,15 +35,59 @@ const Q = [
     { id: 'danger', label: 'Je suis en danger, ou quelqu’un l’est', strong: true },
     { id: 'poser', label: 'Je veux juste le poser quelque part' },
   ] },
-  { key: 'Ça ressemble à', title: 'Ça ressemble à quoi ?', hint: 'Un mot, plusieurs, ou aucun.', grid: true, items: [
+  mots: { key: 'Ça ressemble à', title: 'Ça ressemble à quoi ?', hint: 'Un mot, plusieurs, ou aucun.', grid: true, items: [
     { id: 'colere', label: 'de la colère', q: 'AD' }, { id: 'rage', label: 'de la rage', q: 'AD' }, { id: 'peur', label: 'de la peur', q: 'AD' }, { id: 'angoisse', label: 'de l’angoisse', q: 'AD' },
     { id: 'honte', label: 'de la honte', q: 'ED' }, { id: 'tristesse', label: 'de la tristesse', q: 'ED' }, { id: 'vide', label: 'du vide', q: 'ED' }, { id: 'fatigue', label: 'de la fatigue', q: 'ED' },
     { id: 'culpa', label: 'de la culpabilité', q: 'ED' }, { id: 'solitude', label: 'de la solitude', q: 'ED' },
     { id: 'envie', label: 'de l’envie', q: 'AS' }, { id: 'espoir', label: 'de l’espoir', q: 'AS' },
     { id: 'soulagement', label: 'du soulagement', q: 'ES' }, { id: 'calme', label: 'du calme', q: 'ES' },
+  ], boost: a => {
+    const s = {};
+    if (a.situ.has('regret')) bump(s, ['culpa', 'honte'], 3);
+    if (a.situ.has('mal')) { bump(s, ['peur'], 3); bump(s, ['honte'], 2); bump(s, ['colere', 'angoisse'], 1); }
+    if (a.situ.has('pasbien')) { bump(s, ['vide', 'fatigue', 'tristesse'], 2); bump(s, ['angoisse'], 1); }
+    if (a.situ.has('danger')) { bump(s, ['peur'], 3); bump(s, ['angoisse'], 2); }
+    if (a.situ.has('boucle')) { bump(s, ['angoisse'], 2); bump(s, ['culpa'], 1); }
+    if (a.situ.has('jamais') || a.situ.has('personne')) bump(s, ['honte', 'solitude'], 2);
+    if (a.situ.has('recent')) bump(s, ['colere', 'tristesse'], 1);
+    if (a.situ.has('longtemps')) bump(s, ['fatigue', 'vide'], 1);
+    if (a.situ.has('poser')) bump(s, ['soulagement'], 1);
+    return s;
+  } },
+  sujets: { key: 'Ça parle de', title: 'De quoi ça parle ?', hint: 'Un sujet, plusieurs, ou aucun.', items: SUBJECTS.map(([t], i) => ({ id: `s${i}`, label: t, subject: t })), boost: a => {
+    const s = {};
+    if (a.situ.has('regret') || a.mots.has('honte') || a.mots.has('culpa')) MORAL.forEach(id => bump(s, [id], SUBJECTS[+id.slice(1)][1]));
+    if (a.situ.has('mal')) { bump(s, ['s11'], 4); bump(s, ['s4', 's5'], 1); }
+    if (a.mots.has('solitude')) { bump(s, ['s4', 's5'], 2); bump(s, ['s13'], 1); }
+    if (a.mots.has('peur') || a.mots.has('angoisse')) { bump(s, ['s9'], 2); bump(s, ['s7', 's6'], 1); }
+    if (a.mots.has('tristesse') || a.mots.has('vide')) bump(s, ['s12', 's9'], 2);
+    if (a.mots.has('colere') || a.mots.has('rage')) bump(s, ['s5', 's7', 's4', 's0'], 1);
+    if (a.mots.has('envie') || a.mots.has('espoir')) { bump(s, ['s14'], 2); bump(s, ['s13'], 1); }
+    if (a.mots.has('fatigue')) { bump(s, ['s7'], 2); bump(s, ['s9'], 1); }
+    if (a.situ.has('jamais') || a.situ.has('personne')) bump(s, ['s1', 's3', 's13'], 1);
+    return s;
+  } },
+  fait: { key: 'Ce que tu as fait', title: 'Si c’est quelque chose que tu as fait…', hint: 'Une question de plus, d’après tes cases. Coche ce qui est vrai, ou rien.', extra: true,
+    when: a => a.situ.has('regret') || ['s0', 's1', 's2'].some(id => a.sujets.has(id)), items: [
+    { id: 'flong', label: 'C’était il y a longtemps', chip: 'Il y a longtemps, j’ai…', starter: 'Il y a longtemps, j’ai ' },
+    { id: 'fplus', label: 'Je l’ai fait plus d’une fois', chip: 'Plus d’une fois…', starter: 'Plus d’une fois, ' },
+    { id: 'fsouff', label: 'Quelqu’un en a souffert', chip: 'Quelqu’un en a souffert…', starter: 'Quelqu’un en a souffert : ' },
+    { id: 'fsait', label: 'Cette personne ne le sait pas' },
+    { id: 'frep', label: 'Je n’ai jamais réparé', chip: 'Je n’ai jamais réparé…', starter: 'Je n’ai jamais réparé, ' },
+    { id: 'frepr', label: 'Personne ne me l’a jamais reproché' },
+    { id: 'fpense', label: 'J’y pense encore', chip: 'J’y pense encore…', starter: 'J’y pense encore quand ' },
   ] },
-  { key: 'Ça parle de', title: 'De quoi ça parle ?', hint: 'Un sujet, plusieurs, ou aucun.', items: SUBJECTS.map(([t], i) => ({ id: `s${i}`, label: t, subject: t })) },
-];
+  subi: { key: 'Ce qu’on t’a fait', title: 'Si c’est quelque chose qu’on t’a fait…', hint: 'Une question de plus, d’après tes cases. Coche ce qui est vrai, ou rien.', extra: true,
+    when: a => a.situ.has('mal') || a.sujets.has('s11'), items: [
+    { id: 'slong', label: 'C’était il y a longtemps', chip: 'C’était il y a longtemps…', starter: 'C’était il y a longtemps, ' },
+    { id: 'scont', label: 'Ça continue', chip: 'Ça continue…', starter: 'Ça continue, ', soft: true },
+    { id: 'sparle', label: 'Je n’en ai jamais parlé', chip: 'Je n’en ai jamais parlé…', starter: 'Je n’en ai jamais parlé, ' },
+    { id: 'sresp', label: 'Je me sens responsable', chip: 'Je me sens responsable…', starter: 'Je me sens responsable, ' },
+    { id: 'speur', label: 'J’ai peur de cette personne', strong: true },
+  ] },
+};
+const KEYS = Object.keys(QUESTIONS);
+const BASE = ['situ', 'mots', 'sujets'];
 const QUADRANTS = { AD: 'agité et douloureux', AS: 'agité et supportable', ED: 'éteint et douloureux', ES: 'éteint et supportable' };
 
 // Détection locale sur la page, sans accents. Rien ne part ; l’appli ne dit jamais ce qu’elle a repéré.
@@ -72,11 +120,17 @@ const HUMANS = [
 const MOCK = {
   total: 1214,
   quad: { AD: 27, ED: 41, AS: 14, ES: 18 },
-  situation: {
+  sentences: {
     boucle: 'Une personne sur trois a coché « ça tourne en boucle », comme toi.',
     longtemps: 'Une personne sur deux porte ça depuis longtemps, comme toi.',
     personne: 'Pour une personne sur quatre, personne ne le sait. Comme toi.',
     jamais: 'Deux personnes sur cinq n’ont jamais dit ce qu’elles déposent ici.',
+    frep: 'Une personne sur deux n’a jamais réparé, comme toi.',
+    fsait: 'Trois fois sur quatre, la personne ne le sait pas.',
+    fpense: 'Presque tout le monde y pense encore.',
+    sparle: 'Deux personnes sur trois n’en ont jamais parlé, comme toi.',
+    scont: 'Pour une personne sur cinq, ça continue.',
+    sresp: 'Une personne sur deux se sent responsable, comme toi.',
   },
   pairs: {
     'famille|argent, dettes': 'Une personne sur quatre qui coche famille coche aussi argent.',
@@ -93,29 +147,40 @@ const MOCK = {
 
 /* ───────── État ───────── */
 
-const state = { answers: [new Set(), new Set(), new Set()], text: '', short: false, help: 0, helpKind: '', softShown: false, path: null, gesture: null };
+const emptyAnswers = () => Object.fromEntries(KEYS.map(k => [k, new Set()]));
+const state = { answers: emptyAnswers(), deposited: null, text: '', short: false, help: 0, helpKind: '', softShown: false, path: null, gesture: null };
 const trace = []; // ce qui serait compté (jamais le texte)
 const note = s => trace.push(s);
 const app = $('#app');
-const checkedIn = (answers, i) => Q[i].items.filter(it => answers[i].has(it.id));
-const checked = i => checkedIn(state.answers, i);
-const has = (i, id) => state.answers[i].has(id);
+const checkedIn = (answers, k) => QUESTIONS[k].items.filter(it => answers[k].has(it.id));
+const checked = k => checkedIn(state.answers, k);
+const has = (k, id) => state.answers[k].has(id);
+const anyChecked = answers => KEYS.some(k => answers[k].size);
+const pack = answers => Object.fromEntries(KEYS.map(k => [k, [...answers[k]]]));
+const unpack = obj => Object.fromEntries(KEYS.map(k => [k, new Set(obj?.[k] || [])]));
+const sequence = () => [...BASE, ...KEYS.filter(k => QUESTIONS[k].extra && QUESTIONS[k].when(state.answers))];
+
+// Ce que les cases disent déjà de l’aide : fort (des humains en premier), doux (une ligne), et de quel côté.
+const signals = () => {
+  const items = KEYS.flatMap(k => checked(k));
+  return { strong: items.some(it => it.strong), soft: items.some(it => it.soft), other: has('situ', 'mal') || has('sujets', 's11') || state.answers.subi.size > 0 };
+};
 
 function saveDraft() {
-  try { localStorage.setItem('limbesB.draft', JSON.stringify({ answers: state.answers.map(s => [...s]), text: state.text, short: state.short })); } catch { /* stockage indisponible */ }
+  try { localStorage.setItem('limbesB.draft', JSON.stringify({ answers: pack(state.answers), text: state.text, short: state.short })); } catch { /* stockage indisponible */ }
 }
 function loadDraft() {
   try {
     const d = JSON.parse(localStorage.getItem('limbesB.draft') || 'null');
-    if (!d) return;
-    state.answers = d.answers.map(a => new Set(a));
+    if (!d || Array.isArray(d.answers)) return; // un brouillon d’une version précédente : on repart
+    state.answers = unpack(d.answers);
     state.text = d.text || '';
     state.short = !!d.short;
   } catch { /* pas de brouillon */ }
 }
 function clearDraft() {
   state.deposited = state.answers; // pour « où tu es » juste après un geste
-  state.answers = [new Set(), new Set(), new Set()];
+  state.answers = emptyAnswers();
   state.text = '';
   state.path = null;
   try { localStorage.removeItem('limbesB.draft'); } catch { /* rien à effacer */ }
@@ -136,68 +201,73 @@ function render(screen) {
   else if (screen === 'page') renderPage();
   else if (screen === 'after') renderAfter();
   else if (screen === 'where') renderWhere();
-  else renderQ(+screen.slice(1) || 0);
+  else renderQ(QUESTIONS[screen.slice(2)] ? screen.slice(2) : 'situ');
   scrollTo(0, 0);
   const h = app.querySelector('h1, .big');
   if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
 }
 
-/* ───────── Les trois questions ───────── */
+/* ───────── Les questions ───────── */
 
-function renderQ(i) {
-  const q = Q[i];
+function renderQ(key) {
+  const q = QUESTIONS[key];
+  const scores = q.boost ? q.boost(state.answers) : {};
+  const items = [...q.items].sort((x, y) => (scores[y.id] || 0) - (scores[x.id] || 0));
+  const boosted = items.some(it => scores[it.id]);
+  const dots = el('div', { className: 'dots' });
+  const step = el('p', { className: 'step' });
   const next = el('button', { type: 'button', className: 'btn' });
-  const label = () => { const n = state.answers[i].size; next.textContent = (i === 2 ? 'Voir' : 'Suivant') + (n ? ` (${n})` : ''); };
-  const list = el('div', { className: `opts${q.grid ? ' grid' : ''}` }, ...q.items.map(it => {
-    const input = el('input', { type: 'checkbox', checked: has(i, it.id) });
-    input.addEventListener('change', () => {
-      if (input.checked) { state.answers[i].add(it.id); note(`case : ${it.label}`); } else state.answers[i].delete(it.id);
-      saveDraft();
-      label();
-    });
-    return el('label', { className: 'opt' }, input, el('span', { textContent: it.label }));
-  }));
-  label();
-  next.addEventListener('click', () => go(i < 2 ? `q${i + 1}` : 'orient'));
   const nav = el('nav', { className: 'nav' });
-  if (i) nav.append(quiet('retour', () => history.back())); else nav.append(el('span'));
-  nav.append(el('span', { className: 'spacer' }), quiet('passer', () => go(i < 2 ? `q${i + 1}` : 'orient')), next);
-  app.replaceChildren(
-    el('div', { className: 'dots' }, ...[0, 1, 2].map(j => el('i', { className: j === i ? 'now' : j < i ? 'done' : '' }))),
-    el('p', { className: 'step', textContent: `${i + 1} sur 3` }),
-    el('h1', { textContent: q.title }),
-    el('p', { className: 'hint', textContent: q.hint }),
-    list,
-    nav,
-  );
+  const refresh = () => { // la suite peut s’allonger pendant qu’on coche
+    const seq = sequence(), i = seq.indexOf(key), last = i === seq.length - 1, n = state.answers[key].size;
+    dots.replaceChildren(...seq.map((k, j) => el('i', { className: j === i ? 'now' : j < i ? 'done' : '' })));
+    step.textContent = q.extra ? 'Une question de plus' : `${i + 1} sur ${seq.length}`;
+    next.textContent = (last ? 'Voir' : 'Suivant') + (n ? ` (${n})` : '');
+    next.onclick = () => go(last ? 'orient' : `q:${seq[i + 1]}`);
+    nav.replaceChildren(key === 'situ' ? el('span') : quiet('retour', () => history.back()), el('span', { className: 'spacer' }), quiet('passer', next.onclick), next);
+  };
+  const list = el('div', { className: `opts${q.grid ? ' grid' : ''}` }, ...items.map(it => {
+    const input = el('input', { type: 'checkbox', checked: has(key, it.id) });
+    input.addEventListener('change', () => {
+      if (input.checked) { state.answers[key].add(it.id); note(`case : ${it.label}`); } else state.answers[key].delete(it.id);
+      saveDraft();
+      refresh();
+    });
+    const opt = el('label', { className: 'opt' }, input, el('span', { textContent: it.label }));
+    if (scores[it.id]) { const m = el('i', { className: 'mark' }); m.setAttribute('title', 'd’après tes cases'); opt.append(m); }
+    return opt;
+  }));
+  refresh();
+  app.replaceChildren(dots, step, el('h1', { textContent: q.title }),
+    el('p', { className: 'hint', textContent: boosted ? 'Les premières viennent de tes cases. Tout le reste est là aussi.' : q.hint }),
+    list, nav);
 }
 
 /* ───────── Par où aller ───────── */
 
 function starters() {
-  const out = checked(0).filter(it => it.starter).map(it => ({ label: it.chip, text: it.starter }));
-  const words = checked(1).map(it => it.label);
+  const out = KEYS.filter(k => k !== 'mots' && k !== 'sujets').flatMap(k => checked(k).filter(it => it.starter).map(it => ({ label: it.chip, text: it.starter })));
+  const words = checked('mots').map(it => it.label);
   if (words.length) out.push({ label: 'Il y a…', text: `Il y a ${words.join(' et ')}. ` });
-  const subs = checked(2).map(it => it.label);
+  const subs = checked('sujets').map(it => it.label);
   if (subs.length) out.push({ label: 'Ça parle de…', text: `Ça parle de${NB}: ${subs.join(', ')}. ` });
   return out;
 }
 
 function renderOrient() {
-  const danger = has(0, 'danger'), mal = has(0, 'mal'), pasbien = has(0, 'pasbien'), poser = has(0, 'poser');
-  const total = state.answers.reduce((n, s) => n + s.size, 0);
+  const sig = signals(), poser = has('situ', 'poser'), total = anyChecked(state.answers);
   const recap = el('div', { className: 'recap' });
   if (!total) recap.append(el('p', { className: 'hint', textContent: 'Tu n’as rien coché. C’est très bien aussi. Voilà par où on peut aller.' }));
   else {
-    Q.forEach((q, i) => {
-      const c = checked(i);
-      if (!c.length) return;
-      recap.append(el('p', { className: 'recap-row' }, el('span', { className: 'k', textContent: `${q.key}${NB}:` }), ...c.map(it => {
+    for (const k of KEYS) {
+      const c = checked(k);
+      if (!c.length) continue;
+      recap.append(el('p', { className: 'recap-row' }, el('span', { className: 'k', textContent: `${QUESTIONS[k].key}${NB}:` }), ...c.map(it => {
         const b = el('button', { type: 'button', className: 'tag', textContent: it.label });
-        b.addEventListener('click', () => go(`q${i}`));
+        b.addEventListener('click', () => go(`q:${k}`));
         return b;
       })));
-    });
+    }
   }
   const paths = el('div', { className: 'paths' });
   const path = (title, sub, fn, cls = '') => {
@@ -205,21 +275,22 @@ function renderOrient() {
     b.addEventListener('click', () => { state.path = title; note(`chemin : ${title}`); fn(); });
     paths.append(b);
   };
-  const humans = () => humansSheet(mal ? 'other' : 'self');
-  if (danger) path('Parler à quelqu’un, maintenant', 'des humains, à toute heure', humans, 'first');
+  const humans = () => humansSheet(sig.other ? 'other' : 'self');
+  if (sig.strong) path('Parler à quelqu’un, maintenant', 'des humains, à toute heure', humans, 'first');
   if (poser) path('Juste le poser', 'sans écrire : garder, brûler ou transmettre tes cases', finishSheet);
   path('Écrire', starters().length ? 'avec des débuts de phrases tirés de tes cases' : 'la page est à toi', () => { state.short = false; go('page'); });
   path('Le dire en trois lignes', 'court, et c’est tout', () => { state.short = true; go('page'); });
   if (!poser) path('Juste le poser', 'sans écrire : garder, brûler ou transmettre tes cases', finishSheet);
-  if (!danger && (pasbien || mal)) path('Parler à quelqu’un', 'des humains, ailleurs, à toute heure', humans);
+  if (!sig.strong && sig.soft) path('Parler à quelqu’un', 'des humains, ailleurs, à toute heure', humans);
   path('Voir où tu es parmi les autres', 'avec tes cases, sans rien écrire', () => go('where'));
+  const seq = sequence();
   app.replaceChildren(
     el('p', { className: 'step', textContent: 'D’après tes cases' }),
     el('h1', { textContent: 'Par où aller ?' }),
     recap,
     el('p', { className: 'hint', textContent: total ? 'Tu choisis. Tu pourras revenir.' : '' }),
     paths,
-    el('nav', { className: 'nav' }, quiet('retour aux questions', () => go('q2'))),
+    el('nav', { className: 'nav' }, quiet('retour aux questions', () => go(`q:${seq[seq.length - 1]}`))),
   );
 }
 
@@ -322,8 +393,9 @@ function renderPage() {
   );
   requestAnimationFrame(() => { grow(ta); if (state.short) count.textContent = `${ta.value.length} / 280`; });
   // Ce que les cases ont déjà dit : la ligne d’aide vient sous la page, sans rien bloquer.
-  if (has(0, 'danger')) showHelp(help, 3, has(0, 'mal') ? 'other' : 'self');
-  else if (has(0, 'pasbien') || has(0, 'mal')) showHelp(help, 2);
+  const sig = signals();
+  if (sig.strong) showHelp(help, 3, sig.other ? 'other' : 'self');
+  else if (sig.soft) showHelp(help, 2);
   else paintHelp(help);
   if (state.text) assess(state.text, help);
 }
@@ -391,18 +463,18 @@ function finishSheet() {
 
 function transmitSheet() {
   const check = el('input', { type: 'checkbox', checked: true });
-  const go_ = el('button', { type: 'button', className: 'gesture', textContent: 'Transmettre' });
-  go_.addEventListener('click', () => { closeSheet(); transmit(check.checked); });
+  const send = el('button', { type: 'button', className: 'gesture', textContent: 'Transmettre' });
+  send.addEventListener('click', () => { closeSheet(); transmit(check.checked); });
   openSheet(el('div', {},
     el('h2', { textContent: 'Transmettre aux autres' }),
     el('p', { className: 'intro', textContent: 'Tes cases, et ton texte s’il y en a un, partiront sans ton nom, et sans rien qui permette de te reconnaître. Ils rejoindront ce que d’autres ont déposé. Ils pourront être comptés, mélangés, racontés avec d’autres. Personne ne les lira seuls.' }),
     el('label', { className: 'check' }, check, 'garder une copie sur ce téléphone'),
-    go_,
+    send,
     footRow(quiet('pas maintenant', closeSheet))));
 }
 
 function keptList() {
-  try { return JSON.parse(localStorage.getItem('limbesB.kept') || '[]'); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem('limbesB.kept') || '[]').filter(k => k.answers && !Array.isArray(k.answers)); } catch { return []; }
 }
 function saveKept(list) {
   try { localStorage.setItem('limbesB.kept', JSON.stringify(list)); } catch { /* stockage indisponible */ }
@@ -413,7 +485,7 @@ function updateKept() {
   b.hidden = !n;
   b.textContent = n === 1 ? '1 gardé' : `${n} gardés`;
 }
-const labelsOf = answers => Q.flatMap((q, i) => q.items.filter(it => answers[i].includes(it.id)).map(it => it.label));
+const labelsOf = answers => KEYS.flatMap(k => QUESTIONS[k].items.filter(it => (answers[k] || []).includes(it.id)).map(it => it.label));
 
 function keptSheet() {
   const body = el('div', {}, el('h2', { textContent: 'Ce que tu as gardé' }));
@@ -424,9 +496,9 @@ function keptSheet() {
     open.addEventListener('click', () => { // reprendre : ce qui est en cours est gardé d’abord, rien ne se perd
       closeSheet();
       const rest = keptList().filter(x => x.id !== k.id);
-      if (state.text.trim() || state.answers.some(s => s.size)) rest.unshift(snapshot());
+      if (state.text.trim() || anyChecked(state.answers)) rest.unshift(snapshot());
       saveKept(rest);
-      state.answers = k.answers.map(a => new Set(a));
+      state.answers = unpack(k.answers);
       state.text = k.text;
       saveDraft();
       go(k.text ? 'page' : 'orient');
@@ -440,7 +512,7 @@ function keptSheet() {
 
 /* ───────── Gestes ───────── */
 
-const snapshot = extra => ({ id: Date.now(), date: new Date().toISOString(), text: state.text, answers: state.answers.map(s => [...s]), ...extra });
+const snapshot = extra => ({ id: Date.now(), date: new Date().toISOString(), text: state.text, answers: pack(state.answers), ...extra });
 
 function keep() {
   state.gesture = 'garder';
@@ -472,11 +544,10 @@ let afterLine = '', afterNote = '';
 function renderAfterWith(line, tiny = '') { afterLine = line; afterNote = tiny; go('after'); }
 
 function renderAfter() {
-  const again = quiet('recommencer', () => { clearDraft(); go('q0'); });
   app.replaceChildren(el('div', { className: 'after' },
     el('p', { className: 'big', textContent: afterLine }),
     el('p', { className: 'tiny', textContent: afterNote }),
-    el('div', { className: 'links' }, quiet('voir où tu es parmi les autres', () => go('where')), again)));
+    el('div', { className: 'links' }, quiet('voir où tu es parmi les autres', () => go('where')), quiet('recommencer', () => { clearDraft(); go('q:situ'); }))));
 }
 
 /* ───────── Où tu es ───────── */
@@ -507,9 +578,9 @@ function renderWhere() {
     el('p', { className: 'step', textContent: 'Avec tes cases' }),
     el('h1', { textContent: 'Où tu es, parmi les autres' }),
     el('p', { className: 'hint', textContent: `Ce mois-ci, ${total} personnes ont déposé quelque chose ici.` }));
-  const answers = state.answers.some(a => a.size) ? state.answers : state.deposited || state.answers;
-  const words = checkedIn(answers, 1), subs = checkedIn(answers, 2).map(it => it.label), situ = checkedIn(answers, 0);
-  const situated = words.length || subs.length;
+  const answers = anyChecked(state.answers) ? state.answers : state.deposited || state.answers;
+  const words = checkedIn(answers, 'mots'), subs = checkedIn(answers, 'sujets').map(it => it.label);
+  const others = ['situ', 'fait', 'subi'].flatMap(k => checkedIn(answers, k)).filter(it => MOCK.sentences[it.id]);
   if (words.length) {
     const quads = new Set(words.map(it => it.q));
     const main = [...quads].sort((a, b) => MOCK.quad[b] - MOCK.quad[a])[0];
@@ -526,18 +597,17 @@ function renderWhere() {
     w.append(el('p', { className: 'small', textContent: 'Ce que ça touche' }), el('div', { className: 'dims' },
       ...[['moral', dims[0]], ['relationnel', dims[1]], ['projet', dims[2]]].map(([n, v]) => el('div', {}, el('span', { textContent: n }), el('i', {}, el('b', { style: `--p:${v / max}` }))))));
   }
-  const s = situ.find(it => MOCK.situation[it.id]);
-  if (s) w.append(el('p', { textContent: MOCK.situation[s.id] }));
-  if (!situated && !s) {
+  for (const it of others.slice(0, 2)) w.append(el('p', { textContent: MOCK.sentences[it.id] }));
+  if (!words.length && !subs.length && !others.length) {
     w.append(el('p', { textContent: `Tu n’as rien coché, ou presque. C’est très bien aussi${NB}: tu es parmi les ${total}.` }));
     const b = el('button', { type: 'button', className: 'gesture', textContent: 'Cocher quelques cases' });
-    b.addEventListener('click', () => go('q1'));
+    b.addEventListener('click', () => go('q:mots'));
     w.append(b);
   }
   w.append(
     el('details', {}, el('summary', { textContent: 'Ce qui serait compté' }), el('ul', {}, ...(trace.length ? trace : ['rien']).map(t => el('li', { textContent: t })))),
     el('p', { className: 'tiny', textContent: 'Chiffres inventés pour la maquette. Le texte, lui, n’est jamais compté.' }),
-    el('nav', { className: 'nav' }, quiet('retour', () => history.back()), el('span', { className: 'spacer' }), quiet('recommencer', () => { clearDraft(); go('q0'); })),
+    el('nav', { className: 'nav' }, quiet('retour', () => history.back()), el('span', { className: 'spacer' }), quiet('recommencer', () => { clearDraft(); go('q:situ'); })),
   );
   app.replaceChildren(w);
 }
@@ -549,6 +619,6 @@ updateKept();
 $('#kept').addEventListener('click', keptSheet);
 $('#humans').addEventListener('click', () => humansSheet());
 $('#exit').addEventListener('click', e => { e.preventDefault(); location.replace(e.currentTarget.href); });
-addEventListener('popstate', e => render(e.state?.screen || 'q0'));
-history.replaceState({ screen: 'q0' }, '', '');
-render('q0');
+addEventListener('popstate', e => render(e.state?.screen || 'q:situ'));
+history.replaceState({ screen: 'q:situ' }, '', '');
+render('q:situ');
