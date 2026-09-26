@@ -1,4 +1,4 @@
-// Limbes — maquette D : le contenu (les cases de B, telles quelles).
+// Limbes : le contenu. Les cases, les sujets, les mots-clés d’alerte, les numéros.
 // Sujets : [libellé, poids moral, poids relationnel, poids projet].
 
 export const SUBJECTS = [

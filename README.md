@@ -14,18 +14,13 @@ Confessionnal virtuel. Examinez votre conscience, avouez, recevez votre péniten
 
 Mêmes réponses, même verdict : le prêtre ne change pas d’avis.
 
-## Maquettes « Limbes »
+## Limbes
 
-Les maquettes cliquables d’un autre concept : un endroit où l’on peut tout dire, sans prêtre ni jugement.
+Un autre concept : un endroit où l’on peut tout déposer, sans prêtre ni jugement. On coche quelques cases, on écrit si on veut, et une île en 3D pousse avec ce qu’on dépose. On peut la mettre dans un archipel, sans son nom.
 
-**→ https://chtabay.github.io/Absolution/maquettes/**
+**→ https://chtabay.github.io/Absolution/limbes/**
 
-- `limbes-e/` : **E, l’île en 3D**. La même île que D, en vraie 3D (three.js embarqué) : relief, mer transparente, ombres douces, lumière du climat. Même parcours, même grammaire, même stockage que D. Voir [`limbes-e/README.md`](limbes-e/README.md).
-- `limbes-d/` : **D, l’île**. Les cases de B, une île en low poly qui pousse avec chaque dépôt selon une grammaire (famille, espèce, taille, état), cinq paysages et des formes variées, le texte lu sur le téléphone pour proposer des sujets, et un archipel. Voir [`limbes-d/README.md`](limbes-d/README.md).
-- `limbes-c/` : **C, le ciel**. Les cases de B, une entité qui change avec elles, et un ciel étoilé où l’envoyer. Voir [`limbes-c/README.md`](limbes-c/README.md).
-- `entites/` : **la planche de l’entité**. Quatre incarnations de ce qu’on dépose, réglables, et le geste de l’envoyer au monde. Voir [`entites/README.md`](entites/README.md).
-- `limbes-b/` : **B, les cases**. Trois questions à cocher, puis on voit. Fond clair, police ronde. Voir [`limbes-b/README.md`](limbes-b/README.md).
-- `limbes/` : **A, la page**. Une page, un curseur, des amorces. Sombre et grave, gardée pour comparer. Voir [`limbes/README.md`](limbes/README.md).
+Tout est dans [`limbes/`](limbes/) : la grammaire qui fait pousser l’île, le rendu en 3D (three.js embarqué), l’archipel. Voir [`limbes/README.md`](limbes/README.md). Les anciennes adresses des maquettes renvoient vers cette page.
 
 ## Confidentialité
 
@@ -55,5 +50,7 @@ python3 -m http.server
 | `fonts/` | EB Garamond et Cinzel (licence SIL OFL 1.1) |
 | `og.png`, `favicon.svg`, `apple-touch-icon.png` | Aperçu des liens et icônes |
 | `.nojekyll` | Sert les fichiers tels quels sur GitHub Pages |
+| `404.html` | Page introuvable ; renvoie les anciennes adresses des maquettes vers `limbes/` |
+| `limbes/` | Limbes, l’île en 3D (voir son README) |
 
 Absolution non contractuelle, sans valeur sacramentelle.

@@ -1,11 +1,11 @@
-// Limbes — maquette E : le monde en 3D. Le sol en relief, la mer et ses fonds, le ciel et la lumière du climat,
+// Limbes : le monde en 3D. Le sol en relief, la mer et ses fonds, le ciel et la lumière du climat,
 // la caméra qu’on tourne au doigt, l’île, l’archipel, l’îlot des graines, les aperçus des paysages.
-// La carte, les dépôts et la grammaire viennent de la maquette D : une même île a la même forme en 2D et en 3D.
+// La carte et les dépôts viennent de ile.js : l’île est recalculée à partir de ses dépôts.
 
-import * as THREE from './vendor/three.min.js';
-import { N, CLIMATS, eauDe, sol, carte, deriver } from '../limbes-d/ile.js?v=11';
-import { biomeDe, BIOMES } from '../limbes-d/biomes.js?v=11';
-import { hash, melange, versHex, nuance } from '../limbes-d/dessin.js?v=11';
+import * as THREE from './vendor/three.min.js?v=1';
+import { N, CLIMATS, eauDe, sol, carte, deriver } from './ile.js?v=1';
+import { biomeDe, BIOMES } from './biomes.js?v=1';
+import { hash, melange, versHex, nuance } from './outils.js?v=1';
 import { Bati, MAT, modeleChose, modelePhare, decor, halo, nuageBati, F, G, cone, cyl, baton } from './modeles.js?v=1';
 
 const reduit = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;

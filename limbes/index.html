@@ -4,55 +4,31 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Limbes</title>
-  <meta name="description" content="Maquette. Une page où l’on peut tout dire. Rien ne part.">
+  <meta name="description" content="Un endroit où tout déposer, sans juge. Des cases, une île en 3D qui pousse avec elles, et un archipel.">
   <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#0d0a08">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d0a08'/%3E%3Ccircle cx='32' cy='32' r='9' fill='%23d9a94e'/%3E%3C/svg%3E">
-  <link rel="preload" href="../fonts/eb-garamond.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="../fonts/eb-garamond-italic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="limbes.css">
-  <script type="module" src="limbes.js"></script>
+  <meta name="theme-color" content="#f6f2ea">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2348b8d6'/%3E%3Cpath d='M14 38l18-9 18 9-18 9z' fill='%238fc74b'/%3E%3Cpath d='M32 47l18-9v4l-18 9z' fill='%237f5c3d'/%3E%3Cpath d='M14 38l18 9v4l-18-9z' fill='%23a07752'/%3E%3Cpath d='M30 22l5 9h-10z' fill='%23357a4d'/%3E%3Crect x='33' y='31' width='3' height='5' fill='%237a5033'/%3E%3C/svg%3E">
+  <link rel="preload" href="../fonts/nunito.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css?v=1">
+  <script type="module" src="app.js?v=1"></script>
 </head>
 <body>
   <header class="head">
-    <span class="brand">Limbes <small>maquette</small></span>
-    <button type="button" id="kept" class="quiet" hidden></button>
+    <span class="brand">Limbes</span>
+    <button type="button" id="ile-btn" class="quiet" hidden>ton île</button>
   </header>
 
-  <!-- La page : un seul écran, aucune question -->
-  <main id="page-screen">
-    <p class="welcome">Ici, on peut tout dire.</p>
-    <div class="page">
-      <div id="ghost" class="ghost" aria-hidden="true"></div>
-      <textarea id="text" rows="6" aria-label="Ta page" autocomplete="off" spellcheck="false"></textarea>
-      <p id="count" class="count" hidden></p>
-    </div>
-    <div id="help" class="help" role="status" aria-live="polite" hidden></div>
-    <div id="starters" class="chips" aria-label="Amorces, si tu veux"></div>
-    <section id="deck" class="deck" hidden>
-      <p class="deck-title">Si tu veux aller plus loin.</p>
-      <div id="cards" class="cards"></div>
-      <div id="subchips" class="chips sub" hidden></div>
-    </section>
-  </main>
+  <!-- Les graines : ce que la confession en cours ferait pousser sur l’île -->
+  <div id="companion" class="companion">
+    <canvas id="ent" aria-label="Les graines : ce que tes cases feraient pousser sur ton île."></canvas>
+    <p id="ent-hint" class="ent-hint">Ce que ça fera pousser sur ton île.</p>
+    <p id="ent-note" class="ent-note" hidden></p>
+  </div>
 
-  <!-- Après un geste -->
-  <section id="after" class="screen after" hidden>
-    <p id="after-line" class="big" tabindex="-1"></p>
-    <p id="after-note" class="tiny"></p>
-    <p class="links">
-      <button type="button" id="to-where" class="quiet">voir où tu es parmi les autres</button>
-      <span aria-hidden="true">·</span>
-      <button type="button" id="write-more" class="quiet">écrire autre chose</button>
-    </p>
-  </section>
+  <main id="app"></main>
 
-  <!-- Où tu es, parmi les autres -->
-  <section id="where" class="screen where" hidden></section>
-
-  <footer class="bar">
-    <button type="button" id="other" class="quiet">autrement</button>
-    <button type="button" id="finish" class="quiet finish" hidden>terminer</button>
+  <footer class="foot">
+    <button type="button" id="humans" class="quiet">parler à quelqu’un</button>
     <a id="exit" class="quiet" href="https://www.google.fr/">quitter</a>
   </footer>
 

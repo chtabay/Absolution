@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page introuvable</title>
+  <meta name="robots" content="noindex">
+  <script>
+    // Les maquettes de Limbes ont été remplacées par une seule version, dans limbes/ : leurs anciennes adresses y mènent.
+    (function () {
+      var p = location.pathname, m = p.match(/^(.*?\/)(?:limbes-[a-z]+|maquettes|entites)(?:\/|$)/);
+      if (m) location.replace(m[1] + 'limbes/');
+    })();
+  </script>
+  <style>
+    :root { --bg: #f6f2ea; --ink: #2b2723; --muted: #6f675c; --accent: #3f7d6a; color-scheme: light dark; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #1d1b19; --ink: #f1ece4; --muted: #b5ac9f; --accent: #8cc7b3; } }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1rem; box-sizing: border-box; background: var(--bg); color: var(--ink); font: 1.05rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center; }
+    h1 { margin: 0 0 .4rem; font-size: 1.4rem; }
+    p { margin: .3rem 0; color: var(--muted); }
+    a { color: var(--accent); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Cette page n’existe pas.</h1>
+    <p><a id="accueil" href="/Absolution/">Absolution</a> · <a id="limbes" href="/Absolution/limbes/">Limbes</a></p>
+  </main>
+  <script>
+    (function () { // les liens suivent l’adresse du site, même s’il change de nom
+      var base = /\.github\.io$/.test(location.hostname) ? '/' + location.pathname.split('/')[1] + '/' : '/';
+      document.getElementById('accueil').href = base;
+      document.getElementById('limbes').href = base + 'limbes/';
+    })();
+  </script>
+</body>
+</html>

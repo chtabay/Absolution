@@ -268,7 +268,6 @@ textarea:focus { outline: none; border-color: var(--accent); }
   -webkit-tap-highlight-color: transparent;
 }
 .chip:hover { color: var(--ink); border-color: var(--line-hi); }
-.burning { animation: burn 1.2s ease-in forwards; }
 
 /* ───────── Feuilles ───────── */
 
@@ -318,8 +317,6 @@ textarea:focus { outline: none; border-color: var(--accent); }
 }
 .row small { display: block; color: var(--muted); font-size: .9rem; font-weight: 500; }
 .row:hover { border-color: var(--accent); }
-.kept-row { display: flex; align-items: center; gap: .5rem; }
-.kept-row .row { flex: 1; }
 .gesture {
   display: block;
   width: 100%;
@@ -347,28 +344,10 @@ textarea:focus { outline: none; border-color: var(--accent); }
 .tiny { margin: .4rem 0 0; color: var(--dim); font-size: .9rem; }
 .links { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem 1rem; margin: 1.6rem 0 0; }
 
-.where p { margin: .6rem 0; }
-.where .muted { color: var(--muted); }
-.where .small { margin-top: 1rem; font-size: .92rem; font-weight: 700; color: var(--dim); }
-.quad { display: block; width: min(100%, 15rem); margin: 1rem auto .6rem; }
-.dims { display: grid; gap: .45rem; margin: .4rem 0 1rem; }
-.dims div { display: grid; grid-template-columns: 6.5rem 1fr; align-items: center; gap: .6rem; }
-.dims span { color: var(--muted); font-size: .95rem; }
-.dims i { display: block; height: .5rem; overflow: hidden; border-radius: 999px; background: var(--line); }
-.dims b { display: block; width: calc(var(--p) * 100%); height: 100%; border-radius: inherit; background: var(--accent); }
-.where details { margin-top: 1.4rem; padding-top: .9rem; border-top: 1.5px solid var(--line); color: var(--muted); }
-.where summary { cursor: pointer; font-weight: 700; }
-.where ul { margin: .4rem 0 0; padding-left: 1.1rem; font-size: .95rem; }
-
 .noscript { max-width: 32rem; margin: 2rem auto; padding: 0 1rem; text-align: center; }
 
 @keyframes fade { from { opacity: 0; } }
 @keyframes up { from { transform: translateY(2rem); opacity: 0; } }
-@keyframes burn {
-  0% { color: var(--ink); }
-  40% { color: var(--warm); }
-  100% { color: transparent; filter: blur(4px); letter-spacing: .15em; transform: translateY(-.6rem); }
-}
 
 @media (max-width: 360px) {
   .head, .foot, main { padding-inline: .8rem; }
@@ -381,33 +360,57 @@ textarea:focus { outline: none; border-color: var(--accent); }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-/* ───────── L’entité, en compagnie ───────── */
+/* ───────── Les graines, en compagnie ───────── */
 
 .companion {
   position: relative;
   width: 100%;
   max-width: 32rem;
-  height: 7.5rem;
+  height: 9.2rem;
   margin: .2rem auto 0;
   padding-inline: 1.1rem;
 }
 .companion canvas { display: block; width: 100%; height: 100%; }
+.companion.sans { height: auto; min-height: 1.2rem; }
+.companion.sans .ent-note { position: static; }
 .ent-hint { position: absolute; right: 1.5rem; bottom: 0; margin: 0; color: var(--dim); font-size: .82rem; }
+.ent-note { position: absolute; left: 1.5rem; bottom: 0; margin: 0; color: var(--accent-ink); font-size: .82rem; font-weight: 700; }
 main { padding-top: .6rem; }
 
-/* ───────── Le ciel ───────── */
+/* ───────── L’île, et l’archipel ───────── */
 
-.skywrap {
-  height: clamp(320px, 58vh, 620px);
+.ilewrap {
+  aspect-ratio: 1 / 1.06;
+  max-height: 72vh;
+  margin-inline: auto; /* sur un grand écran, la hauteur est bornée : on centre le cadre */
   overflow: hidden;
   border-radius: 1.1rem;
-  background: #0a0d2a;
+  background: linear-gradient(#9fd6f0, #e3f3fa);
   box-shadow: 0 .4rem 1.6rem rgba(43, 39, 35, .15);
   touch-action: manipulation;
 }
-.skywrap canvas { display: block; width: 100%; height: 100%; }
-.sky-caption { min-height: 1.4rem; margin: .6rem .2rem 0; color: var(--accent-ink); font-weight: 700; }
-.sky-line { margin: .3rem .2rem 0; color: var(--muted); font-size: .95rem; }
+.ilewrap.mer { aspect-ratio: 3 / 4; background: linear-gradient(#f6cfa6, #fbe6d2); }
+.ilewrap canvas.vue3d { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; }
+.ilewrap canvas.vue3d:active { cursor: grabbing; }
+.sans3d { margin: 0; padding: 2rem 1.2rem; color: var(--muted); text-align: center; }
+.ilewrap.sans, .ilewrap.mer.sans { aspect-ratio: auto; box-shadow: none; } /* sans 3D : juste le message */
+.ile-caption { min-height: 1.4rem; margin: .6rem .2rem 0; color: var(--accent-ink); font-weight: 700; }
+.ile-caption .quiet { margin-left: .2rem; padding: 0; color: var(--accent-ink); font-weight: 700; text-decoration: underline; text-underline-offset: .2em; }
+.excerpt { margin: .3rem .2rem 0; padding: .6rem .8rem; border-left: 3px solid var(--line-hi); color: var(--muted); font-style: italic; }
+.ile-line { margin: .3rem .2rem 0; color: var(--muted); font-size: .95rem; }
+.propositions { display: grid; gap: .1rem; margin: 0 0 .6rem; }
+.paysages { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.4rem, 1fr)); gap: .5rem; margin: .4rem 0 .8rem; }
+.paysage { display: grid; gap: .2rem; padding: .4rem .4rem .55rem; border: 1.5px solid var(--line); border-radius: .9rem; background: var(--card); color: var(--ink); font: inherit; text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.paysage canvas { display: block; width: 100%; aspect-ratio: 1 / .9; border-radius: .6rem; background: #3fb0cc; }
+.paysage b { font-size: .95rem; font-weight: 800; line-height: 1.2; }
+.paysage small { color: var(--muted); font-size: .8rem; line-height: 1.25; }
+.paysage[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.paysage:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.propositions .check { margin: .15rem 0; }
+.nav.wrap { flex-wrap: wrap; gap: .3rem .9rem; }
+.legende { padding-left: 1.1rem; }
+.legende li { margin: .35rem 0; }
+.legende b { color: var(--ink); }
 details { margin-top: 1.2rem; padding-top: .9rem; border-top: 1.5px solid var(--line); color: var(--muted); }
 summary { cursor: pointer; font-weight: 700; }
 details ul { margin: .4rem 0 0; padding-left: 1.1rem; font-size: .95rem; }
