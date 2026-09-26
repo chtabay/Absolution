@@ -2,20 +2,38 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Limbes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>L’archipel</title>
   <meta name="description" content="Un endroit pour déposer ce qui pèse, sans jugement. Une île pousse avec ce que tu confies.">
   <meta name="robots" content="noindex">
-  <meta http-equiv="refresh" content="0; url=limbes/">
-  <script>location.replace('limbes/');</script>
-  <style>
-    :root { --bg: #f6f2ea; --ink: #2b2723; --accent: #3f7d6a; color-scheme: light dark; }
-    @media (prefers-color-scheme: dark) { :root { --bg: #1d1b19; --ink: #f1ece4; --accent: #8cc7b3; } }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--ink); font: 1.05rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    a { color: var(--accent); font-weight: 700; }
-  </style>
+  <meta name="theme-color" content="#f6f2ea">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2348b8d6'/%3E%3Cpath d='M14 38l18-9 18 9-18 9z' fill='%238fc74b'/%3E%3Cpath d='M32 47l18-9v4l-18 9z' fill='%237f5c3d'/%3E%3Cpath d='M14 38l18 9v4l-18-9z' fill='%23a07752'/%3E%3Cpath d='M30 22l5 9h-10z' fill='%23357a4d'/%3E%3Crect x='33' y='31' width='3' height='5' fill='%237a5033'/%3E%3C/svg%3E">
+  <link rel="preload" href="fonts/nunito.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css?v=3">
+  <script type="module" src="app.js?v=3"></script>
 </head>
 <body>
-  <p><a href="limbes/">Ouvrir Limbes</a></p>
+  <header class="head">
+    <span class="brand"><svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#48b8d6"/><path d="M14 38l18-9 18 9-18 9z" fill="#8fc74b"/><path d="M32 47l18-9v4l-18 9z" fill="#7f5c3d"/><path d="M14 38l18 9v4l-18-9z" fill="#a07752"/><path d="M30 22l5 9h-10z" fill="#357a4d"/><rect x="33" y="31" width="3" height="5" fill="#7a5033"/></svg>L’archipel</span>
+    <button type="button" id="ile-btn" class="quiet" hidden>ton île</button>
+  </header>
+
+  <!-- Les graines : ce que la confession en cours ferait pousser sur l’île -->
+  <div id="companion" class="companion">
+    <canvas id="ent" aria-label="Les graines : ce que tes cases feraient pousser sur ton île."></canvas>
+    <div class="ent-ligne">
+      <p id="ent-hint" class="ent-hint">Ce que ça fera pousser sur ton île.</p>
+      <p id="ent-note" class="ent-note" hidden></p>
+    </div>
+  </div>
+
+  <main id="app"></main>
+
+  <footer class="foot">
+    <button type="button" id="humans" class="quiet">parler à quelqu’un</button>
+    <a id="exit" class="quiet" href="https://www.google.fr/">quitter</a>
+  </footer>
+
+  <noscript><p class="noscript">Cette page a besoin de JavaScript.</p></noscript>
 </body>
 </html>

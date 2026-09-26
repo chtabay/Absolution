@@ -1,4 +1,4 @@
-// Limbes : la grammaire. Des cases aux graines.
+// L’archipel : la grammaire. Des cases aux graines.
 //
 // Un dépôt (une confession) garde toutes ses cases. Rien n’est réduit à l’enregistrement :
 // l’île est recalculée à partir des dépôts, et une autre grammaire pourrait relire les mêmes dépôts.

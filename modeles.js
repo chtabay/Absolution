@@ -1,4 +1,4 @@
-// Limbes : les choses de l’île, en 3D. Des volumes à facettes, colorés par sommet, fusionnés en peu de maillages.
+// L’archipel : les choses de l’île, en 3D. Des volumes à facettes, colorés par sommet, fusionnés en peu de maillages.
 // Chaque famille, espèce, taille et état de la grammaire a sa forme, et chaque paysage ses variantes.
 // Unité : une tuile = 1. Chaque chose est construite à son pied, en (0, 0, 0).
 

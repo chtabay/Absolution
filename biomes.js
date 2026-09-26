@@ -1,4 +1,4 @@
-// Limbes : les paysages. Choisis par la personne quand elle commence une île.
+// L’archipel : les paysages. Choisis par la personne quand elle commence une île.
 // Un paysage ne dit rien : il change les couleurs du sol, les essences, les maisons, les cultures et le petit décor.
 // Ce qui dit quelque chose reste la famille, l’espèce, la taille et l’état (grammaire.js).
 

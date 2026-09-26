@@ -1,4 +1,4 @@
-// Limbes : le lexique. Une lecture du texte, sur l’appareil, jamais ailleurs.
+// L’archipel : le lexique. Une lecture du texte, sur l’appareil, jamais ailleurs.
 //
 // Le texte est lu ici pour proposer des sujets et une sensation. La personne confirme ou non :
 // rien ne pousse du texte sans son accord. Ce qui est lu ne part jamais ; ce qui est transmis
