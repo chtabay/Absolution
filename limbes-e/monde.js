@@ -1,0 +1,417 @@
+// Limbes — maquette E : le monde en 3D. Le sol en relief, la mer et ses fonds, le ciel et la lumière du climat,
+// la caméra qu’on tourne au doigt, l’île, l’archipel, l’îlot des graines, les aperçus des paysages.
+// La carte, les dépôts et la grammaire viennent de la maquette D : une même île a la même forme en 2D et en 3D.
+
+import * as THREE from './vendor/three.min.js';
+import { N, CLIMATS, eauDe, sol, carte, deriver } from '../limbes-d/ile.js?v=11';
+import { biomeDe, BIOMES } from '../limbes-d/biomes.js?v=11';
+import { hash, melange, versHex, nuance } from '../limbes-d/dessin.js?v=11';
+import { Bati, MAT, modeleChose, modelePhare, decor, halo, nuageBati, F, G, cone, cyl, baton } from './modeles.js?v=1';
+
+const reduit = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const YS = .82, MARGE = 2.5, ECH = 1.35, NIV = .02, lerp = (a, b, t) => a + (b - a) * t, lisse = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const pop = (t, T) => { if (t == null || reduit) return 1; const p = Math.max(0, Math.min(1, (T - t) / .7)) - 1; return 1 + 2.7 * p * p * p + 1.7 * p * p; };
+const tirer = (table, r) => { const tot = table.reduce((s, [, w]) => s + w, 0); let t = r * tot; for (const [k, w] of table) { if (t < w) return k; t -= w; } return table[0]?.[0]; };
+const mobile = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+function liberer(racine) { racine.traverse(o => { if (o.geometry && !o.geometry._partage) o.geometry.dispose(); const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; for (const m of ms) if (!m._partage) { m.map?.dispose?.(); m.dispose(); } }); }
+
+export function disponible() { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } }
+function creerRendu(canvas, { alpha = false, ombres = true } = {}) {
+  const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha, powerPreference: 'default' });
+  r.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.NeutralToneMapping; r.toneMappingExposure = 1;
+  r.shadowMap.enabled = ombres; r.shadowMap.type = THREE.PCFShadowMap;
+  if (alpha) r.setClearColor(0x000000, 0);
+  return r;
+}
+
+/* ───────── La lumière de chaque climat ───────── */
+
+const LUM = {
+  N: { soleil: '#fff1dc', i: 2.4, ciel: '#dff1ff', sol: '#b4a27e', hi: 1.25, elev: 50, azim: 35 },
+  AS: { soleil: '#fff4e0', i: 2.6, ciel: '#e2f4ff', sol: '#b9a680', hi: 1.3, elev: 56, azim: 30 },
+  ES: { soleil: '#ffc890', i: 2.3, ciel: '#ffe6cc', sol: '#a98a66', hi: 1.15, elev: 22, azim: 65 },
+  AD: { soleil: '#ff9f86', i: 1.8, ciel: '#e3c0da', sol: '#6d5d80', hi: 1.1, elev: 15, azim: -55 },
+  ED: { soleil: '#fbf6ec', i: 1.7, ciel: '#f2f4f8', sol: '#b8bdc4', hi: 1.65, elev: 42, azim: 25 },
+};
+const PROFOND = '#0b4f7a';
+function teintes(climat, B) { // l’eau : claire au bord, profonde au large, et une brume qui tire vers le ciel
+  const cl = CLIMATS[climat] || CLIMATS.N, eau = eauDe(climat, B), loin = melange(eau, PROFOND, .5);
+  const lagon = B.lagon ? versHex(B.lagon.split(',').map(Number)) : '#c8f8f2';
+  const chaud = climat === 'ES' || climat === 'AD'; // sous une lumière orangée, l’eau vire au vert : on la pousse vers le bleu
+  const jour = { N: 0, AS: .04, ES: -.06, ED: -.02, AD: -.3 }[climat] ?? 0, fondu = c => nuance(c, jour); // le fond n’est pas éclairé : sa clarté suit le climat
+  return { eau, jour, loin: fondu(loin), chaud, pres: fondu(melange(B.sol.sable[0], lagon, .6)), surface: melange(eau, chaud ? '#3f9fe6' : '#52d0ea', chaud ? .38 : .25), lueur: melange(eau, PROFOND, .2), brume: melange(cl.ciel[1], loin, climat === 'ED' ? .3 : .45) };
+}
+function fondCiel(climat) { // un dégradé, et l’astre peint dedans
+  const c = CLIMATS[climat] || CLIMATS.N, cv = document.createElement('canvas'); cv.width = 64; cv.height = 256;
+  const x = cv.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, c.ciel[0]); g.addColorStop(.62, c.ciel[1]); g.addColorStop(1, c.ciel[1]);
+  x.fillStyle = g; x.fillRect(0, 0, 64, 256);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+
+/* ───────── Le sol : un relief lissé à partir de la carte ───────── */
+
+function bruit(x, z, s = 0) { // un bruit de valeur, doux
+  const h = (i, j) => { const v = Math.sin(i * 127.1 + j * 311.7 + s * 17.3) * 43758.5453; return v - Math.floor(v); };
+  const i = Math.floor(x), j = Math.floor(z), fx = x - i, fz = z - j, ux = fx * fx * (3 - 2 * fx), uz = fz * fz * (3 - 2 * fz);
+  return lerp(lerp(h(i, j), h(i + 1, j), ux), lerp(h(i, j + 1), h(i + 1, j + 1), ux), uz);
+}
+export function relief(m) { // la hauteur du sol en (x, z), en tuiles de 0 à N
+  if (m._relief) return m._relief;
+  const terre = (i, j) => (i >= 0 && j >= 0 && i < N && j < N && m.land[i * N + j] ? 1 : 0);
+  const coin = (i, j) => (i >= 0 && j >= 0 && i <= N && j <= N ? m.vh[i * (N + 1) + j] : 0);
+  const bil = (f, x, y) => { const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j; return f(i, j) * (1 - fx) * (1 - fy) + f(i + 1, j) * fx * (1 - fy) + f(i, j + 1) * (1 - fx) * fy + f(i + 1, j + 1) * fx * fy; };
+  const s = m.seed % 997;
+  m._relief = (x, z) => {
+    const L = bil(terre, x - .5, z - .5) + (bruit(x * 1.3, z * 1.3, s) - .5) * .32, t = lisse(.22, .78, L);
+    const S = Math.max(bil(coin, x, z) * YS, .14) + (bruit(x * 2.6, z * 2.6, s + 5) - .5) * .08;
+    return lerp(-.9, S, t); // au large, le sol rejoint le fond marin, à la même hauteur
+  };
+  return m._relief;
+}
+const _c = new THREE.Color();
+function couleurSol(B, fond, y, ny, x, z, r, s) {
+  const doux = t => melange(t[0], t[1], bruit(x * .9, z * .9, s + 2)); // deux tons, par grandes plages
+  if (y < NIV) { // au ras de l’eau et dessous : l’écume, le haut-fond clair, puis le fond marin, sans rupture (sans éclairage, comme le fond)
+    const clair = melange(melange(B.sol.sable[0], '#d9f6ef', .2), melange(B.sol.sable[0], '#9fe6e0', .25), lisse(-.06, -.4, y));
+    const bord = melange(clair, melange(B.sol.sable[0], '#ffffff', .4), lisse(-.03, NIV, y));
+    return melange(nuance(bord, fond.jour || 0), fond(x - N / 2, z - N / 2), lisse(-.2, -.86, y));
+  }
+  if (y < .05) return melange(B.sol.sable[0], '#ffffff', .35); // l’écume, au bord
+  if (y < .24) return doux(B.sol.sable);
+  if (ny < .7) return melange(doux(B.sol.roche), B.sol.roche[2], .3);
+  if (y > 2.05 * YS) return doux(B.sol.neige);
+  if (y > 1.3 * YS) return doux(B.sol.roche);
+  const h = doux(B.sol.herbe);
+  return bruit(x * .6, z * .6, s + 9) < B.taches[1] * 1.15 ? melange(h, B.taches[0], .4) : h;
+}
+function sol3d(bati, m, B, fond, R) { // les triangles du sol, colorés un par un ; fond(x, z) : la couleur du fond marin à cet endroit
+  // renvoie un second maillage : la pente sous l’eau, éclairée sans facettes, qui se fond dans le fond marin
+  const h = relief(m), n = Math.round((N + 2 * MARGE) * R), pas = 1 / R, x0 = -MARGE, H = [], s = m.seed % 991, dessous = new Bati(2);
+  for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) H.push(h(x0 + i * pas, x0 + j * pas));
+  const P = (i, j) => [x0 + i * pas - N / 2, H[i * (n + 1) + j], x0 + j * pas - N / 2], pos = [], cols = [], posD = [], colsD = [];
+  const poser = (a, b, c, r, sous) => {
+    if (a[1] < -.86 && b[1] < -.86 && c[1] < -.86) return; // le fond plat : le disque du fond s’en charge
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, l = Math.hypot(nx, ny, nz) || 1;
+    const yc = (a[1] + b[1] + c[1]) / 3, xc = (a[0] + b[0] + c[0]) / 3 + N / 2, zc = (a[2] + b[2] + c[2]) / 3 + N / 2;
+    if (sous) { // une couleur par sommet : le haut-fond est un dégradé, sans facettes
+      posD.push(...a, ...c, ...b);
+      for (const v of [a, c, b]) { _c.set(couleurSol(B, fond, Math.min(v[1], NIV - .001), 1, v[0] + N / 2, v[2] + N / 2, r, s)); colsD.push(_c.r, _c.g, _c.b); }
+      return;
+    }
+    _c.set(couleurSol(B, fond, Math.max(yc, NIV), Math.abs(ny / l), xc, zc, r, s)); const k = 1 + (r - .5) * .035;
+    pos.push(...a, ...c, ...b); for (let v = 0; v < 3; v++) cols.push(_c.r * k, _c.g * k, _c.b * k);
+  };
+  const tri = (a, b, c, r) => { // un triangle qui traverse la ligne d’eau est coupé en deux : la terre au-dessus, le haut-fond en dessous
+    const T3 = [a, b, c], haut = T3.map(p => p[1] >= NIV), nh = haut.filter(Boolean).length;
+    if (nh === 3 || nh === 0) return poser(a, b, c, r, nh === 0);
+    const i0 = nh === 1 ? haut.indexOf(true) : haut.indexOf(false), A = T3[i0], Bv = T3[(i0 + 1) % 3], C = T3[(i0 + 2) % 3];
+    const cut = (p, q) => { const t = (NIV - p[1]) / (q[1] - p[1]); return [p[0] + (q[0] - p[0]) * t, NIV, p[2] + (q[2] - p[2]) * t]; };
+    const AB = cut(A, Bv), AC = cut(A, C), seulEnHaut = nh === 1;
+    poser(A, AB, AC, r, !seulEnHaut); poser(AB, Bv, C, r, seulEnHaut); poser(AB, C, AC, r, seulEnHaut);
+  };
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const a = P(i, j), b = P(i + 1, j), c = P(i + 1, j + 1), d = P(i, j + 1), r1 = hash(`${s}:${i}:${j}`), r2 = (r1 * 7.13) % 1;
+    if ((i + j) % 2) { tri(a, b, c, r1); tri(a, c, d, r2); } else { tri(a, b, d, r1); tri(b, c, d, r2); }
+  }
+  bati.triangles(pos, cols); dessous.triangles(posD, colsD);
+  return dessous.maillage(MAT.fond, false, true);
+}
+function decor3d(bati, m, B, part = 1) {
+  const h = relief(m);
+  for (const [i, j, dx, dy, r1, r2] of m.decor) {
+    if (r2 > B.densite * part) continue;
+    const x = i + dx, z = j + dy, y = h(x, z);
+    if (y < .06) continue;
+    const kind = tirer(B.decor[sol(m, i, j)] || [], r1);
+    if (kind) decor(bati, kind, B, x - N / 2, y, z - N / 2, r2);
+  }
+}
+const posTuile = (m, [i, j], barque) => { const y = barque ? 0 : relief(m)(i + .5, j + .5); return [i + .5 - N / 2, y, j + .5 - N / 2]; };
+
+/* ───────── La mer, le fond, le ciel, les nuages ───────── */
+
+const CLAIR = [7, 20], avecJour = (f, T) => Object.assign(f, { jour: T.jour }); // la fonction du fond garde la clarté du climat, pour le haut-fond
+const fondIle = T => avecJour((x, z) => melange(T.pres, T.loin, lisse(CLAIR[0], CLAIR[1], Math.hypot(x, z))), T), fondUni = T => avecJour(() => T.loin, T);
+function fondMarin(T, rayon = 90, { y = -.92, clair = true } = {}) { // le fond : clair autour de l’île, bleu profond au large
+  const g = new THREE.CircleGeometry(rayon, 72, 0, Math.PI * 2).rotateX(-Math.PI / 2), p = g.attributes.position, cols = [], f = clair ? fondIle(T) : fondUni(T);
+  for (let i = 0; i < p.count; i++) { _c.set(f(p.getX(i), p.getZ(i))); cols.push(_c.r, _c.g, _c.b); }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  const m = new THREE.Mesh(g, MAT.fond); m.position.y = y; m.receiveShadow = true;
+  return m;
+}
+function mer(T, rayon = 90) { // la surface : elle garde son bleu même sous un soleil orangé, et le soleil y brille
+  const m = new THREE.Mesh(new THREE.CircleGeometry(rayon, 64).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: T.surface, emissive: T.lueur, emissiveIntensity: T.chaud ? .42 : .32, transparent: true, opacity: .5, roughness: .14, metalness: 0, depthWrite: false }));
+  m.receiveShadow = true; m.renderOrder = 1;
+  return m;
+}
+function nuages(n, sombres, rayon = 12, graine = 1, ombre = true) {
+  const grp = new THREE.Group(), liste = [];
+  for (let i = 0; i < n; i++) {
+    const b = new Bati(graine + i), k = { b, s: 1 };
+    nuageBati(k, 0, 0, 0, 1.6 + (i % 3) * .5, sombres ? ['#c9d0d8', '#a7b0ba'] : ['#ffffff', '#eef2f7']);
+    const m = b.maillage(); m.castShadow = ombre; m.receiveShadow = false; grp.add(m);
+    liste.push({ m, an: (i / n) * 6.28 + graine, r: rayon * (1.2 + (i % 2) * .5), y: 7.5 + (i % 3) * 1.4, v: .012 + (i % 3) * .006 });
+  }
+  return { grp, anim: T => liste.forEach(c => { const a = c.an + T * c.v; c.m.position.set(Math.cos(a) * c.r, c.y, Math.sin(a) * c.r); c.m.rotation.y = -a; }) };
+}
+function oiseaux(n, rayon = 7) {
+  const grp = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ color: '#4a3f48', side: THREE.DoubleSide }), liste = [];
+  for (let i = 0; i < n; i++) {
+    const o = new THREE.Group(), aile = () => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, -.05, 0, 0, .05, .28, 0, 0], 3)); return new THREE.Mesh(g, mat); };
+    const ag = aile(), ad = aile(); ad.scale.x = -1; o.add(ag, ad); grp.add(o); liste.push({ o, ag, ad, ph: i * 2.1, r: rayon + i * 1.3, y: 3.2 + i * .5 });
+  }
+  return { grp, anim: T => liste.forEach(b => { const a = T * .22 + b.ph; b.o.position.set(Math.cos(a) * b.r, b.y + Math.sin(T * .7 + b.ph) * .2, Math.sin(a) * b.r); b.o.rotation.y = -a; const f = Math.sin(T * 8 + b.ph) * .5; b.ag.rotation.z = f; b.ad.rotation.z = -f; }) };
+}
+function scintillements(n, rayon) {
+  const grp = new THREE.Group(), liste = [];
+  for (let i = 0; i < n; i++) { const s = halo('#ffffff', .35, 0), a = hash(`sc:${i}`) * 6.28, r = rayon * (.45 + hash(`sr:${i}`) * .55); s.position.set(Math.cos(a) * r, .03, Math.sin(a) * r); grp.add(s); liste.push({ s, ph: i * 1.7 }); }
+  return { grp, anim: T => liste.forEach(p => { p.s.material.opacity = Math.max(0, Math.sin(T * 1.3 + p.ph)) * .7; }) };
+}
+
+/* ───────── La caméra qu’on tourne ───────── */
+
+class Orbite {
+  constructor(camera, el) {
+    Object.assign(this, { camera, el, azim: Math.PI / 4, elev: .62, dist: 20, cible: new THREE.Vector3() });
+    this.but = { azim: this.azim, elev: this.elev, dist: this.dist, cible: this.cible.clone() };
+    this.limites = { elev: [.3, 1.05], dist: [7, 60] }; this.repos = 0; this.auto = true;
+    let d = null, pts = new Map(), pince = 0;
+    el.addEventListener('pointerdown', e => { pts.set(e.pointerId, [e.clientX, e.clientY]); d = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, bouge: false, t: performance.now() }; this.repos = 0; });
+    el.addEventListener('pointermove', e => {
+      if (!pts.has(e.pointerId) || !d) return;
+      pts.set(e.pointerId, [e.clientX, e.clientY]);
+      if (pts.size === 2) { const [a, b] = [...pts.values()], l = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pince) this.but.dist = Math.max(this.limites.dist[0], Math.min(this.limites.dist[1], this.but.dist * pince / l)); pince = l; d.bouge = true; return; }
+      const dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (Math.abs(e.clientX - d.x0) + Math.abs(e.clientY - d.y0) > 6) d.bouge = true;
+      this.but.azim -= dx * .009;
+      if (e.pointerType === 'mouse') this.but.elev = Math.max(this.limites.elev[0], Math.min(this.limites.elev[1], this.but.elev + dy * .006));
+      d.x = e.clientX; d.y = e.clientY;
+    });
+    const fin = e => { const tap = d && !d.bouge && pts.size <= 1 && performance.now() - d.t < 600; pts.delete(e.pointerId); if (pts.size < 2) pince = 0; if (tap && e.type === 'pointerup') this.onTap?.(e); if (!pts.size) d = null; };
+    el.addEventListener('pointerup', fin); el.addEventListener('pointercancel', fin); el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') fin(e); });
+    el.addEventListener('wheel', e => { e.preventDefault(); this.but.dist = Math.max(this.limites.dist[0], Math.min(this.limites.dist[1], this.but.dist * (1 + Math.sign(e.deltaY) * .08))); }, { passive: false });
+  }
+  maj(dt) {
+    this.repos += dt;
+    if (this.auto && !reduit && this.repos > 5) this.but.azim += dt * .035; // elle tourne doucement, quand on la laisse
+    const k = 1 - Math.pow(.001, dt);
+    this.azim += (this.but.azim - this.azim) * k; this.elev += (this.but.elev - this.elev) * k; this.dist += (this.but.dist - this.dist) * k; this.cible.lerp(this.but.cible, k);
+    const c = Math.cos(this.elev);
+    this.camera.position.set(this.cible.x + Math.sin(this.azim) * c * this.dist, this.cible.y + Math.sin(this.elev) * this.dist, this.cible.z + Math.cos(this.azim) * c * this.dist);
+    this.camera.lookAt(this.cible);
+  }
+}
+
+/* ───────── L’île et l’archipel ───────── */
+
+function soleil(scene, climat, portee, ombre = true) { // ombre : non pour l’archipel, où elles ne se voient pas et coûtent cher
+  const L = LUM[climat] || LUM.N, sun = new THREE.DirectionalLight(L.soleil, L.i), el = L.elev * Math.PI / 180, az = L.azim * Math.PI / 180;
+  sun.position.set(Math.cos(el) * Math.sin(az) * 30, Math.sin(el) * 30, Math.cos(el) * Math.cos(az) * 30);
+  sun.castShadow = ombre; sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048);
+  Object.assign(sun.shadow.camera, { left: -portee, right: portee, top: portee, bottom: -portee, near: 1, far: 80 });
+  sun.shadow.bias = -.0004; sun.shadow.normalBias = .03; sun.shadow.radius = 3;
+  scene.add(sun, sun.target, new THREE.HemisphereLight(L.ciel, L.sol, L.hi));
+  const disque = halo(L.soleil, 26, climat === 'ED' ? .5 : .9); disque.material.fog = false; disque.position.copy(sun.position).normalize().multiplyScalar(70); scene.add(disque);
+  return sun;
+}
+function ileStatique(d, part = .5, R = 2, fond = null) { // une île entière en un seul maillage (et un pour ce qui éclaire), pour l’archipel et les aperçus
+  const B = biomeDe(d.ile.biome), eau = eauDe(d.climat, B), b = new Bati(d.ile.seed % 997 + 1), lum = new Bati(3);
+  const dessous = sol3d(b, d.m, B, fond || fondUni(teintes(d.climat, B)), R); decor3d(b, d.m, B, part);
+  for (const a of d.assets) { const [x, y, z] = posTuile(d.m, a.tile, a.espece === 'barque'); modeleChose(a, B, hash(`${a.key}:${d.ile.seed}`), { bati: b, lum, dx: x, dy: y, dz: z, s: ECH, eauHex: eau }); }
+  const grp = new THREE.Group(), m = b.maillage(); grp.add(m, dessous);
+  if (!lum.vide()) grp.add(lum.maillage(MAT.lum, false));
+  if (d.phareTile) { const p = modelePhare(), [x, y, z] = posTuile(d.m, d.phareTile); p.objet.position.set(x, y, z); p.objet.scale.setScalar(ECH); grp.add(p.objet); }
+  return grp;
+}
+function etiquette(texte) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+  const x = c.getContext('2d'); x.font = '800 30px Nunito, system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.shadowColor = 'rgba(0,40,60,.6)'; x.shadowBlur = 8; x.fillStyle = '#ffffff'; x.fillText(texte, 128, 32);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, depthTest: false, fog: false, sizeAttenuation: false })); s.scale.set(.15, .0375, 1); s.renderOrder = 5; // taille fixe à l’écran
+  return s;
+}
+function voilier() {
+  const b = new Bati(2), k = { b, s: 1 };
+  F(k, cyl(.22, .15, 6), '#8a5a3c', { y: .06, sx: 1, sy: 1.1, sz: .45, rz: Math.PI / 2, ao: .2 }); F(k, cyl(.012, .016, 5), '#6d4a33', { y: .5, sy: .9, ao: 0 });
+  F(k, G.prisme, '#fffaf0', { x: .12, y: .12, sx: .02, sy: .8, sz: .5, ry: Math.PI / 2, ao: 0 });
+  return b.maillage();
+}
+
+export class Vue3D {
+  constructor() {
+    this.canvas = document.createElement('canvas'); this.canvas.className = 'vue3d';
+    this.rendu = creerRendu(this.canvas);
+    this.camera = new THREE.PerspectiveCamera(30, 1, .1, 400);
+    this.orbite = new Orbite(this.camera, this.canvas);
+    this.orbite.onTap = e => this.toucher(e);
+    this.ray = new THREE.Raycaster(); this.mode = null; this.anims = []; this.cle = ''; this.vie = new Map(); this.objets = new Map();
+    this.t0 = performance.now(); this.dernier = 0; this.dimsArch = [18, 36];
+  }
+  attacher(parent) { parent.append(this.canvas); this.redim(); }
+  get actif() { return !!this.canvas.isConnected && !!this.mode; }
+  redim() {
+    const w = this.canvas.clientWidth || 300, h = this.canvas.clientHeight || 300;
+    this.rendu.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
+    const fit = (larg, haut) => Math.max(haut / (2 * Math.tan(this.camera.fov * Math.PI / 360)), larg / (2 * Math.tan(this.camera.fov * Math.PI / 360) * this.camera.aspect));
+    const [L, P] = this.dimsArch;
+    this.distIle = fit(N * 1.02, N * .62); this.distArch = fit(L * 1.2 + 4, (P * 1.24 + 4) * Math.sin(.72));
+    if (this.mode === 'ile' && !this.zoomManuel) this.orbite.but.dist = this.distIle;
+  }
+  vider() { if (this.scene) { liberer(this.scene); this.scene.background?.dispose?.(); } this.scene = new THREE.Scene(); this.anims = []; this.objets = new Map(); }
+
+  montrerIle(d, opts = {}) {
+    const B = biomeDe(d.ile.biome), eau = eauDe(d.climat, B), cle = `${d.ile.id}:${d.ile.seed}:${d.ile.biome}:${d.climat}:${d.ile.depots.length}`;
+    this.vie = opts.vie || this.vie; this.sel = null; this.d = d;
+    if (this.mode === 'ile' && this.cle === cle) return;
+    const premiere = this.mode !== 'ile';
+    this.mode = 'ile'; this.cle = cle; this.vider();
+    const s = this.scene, cl = CLIMATS[d.climat] || CLIMATS.N;
+    const T = teintes(d.climat, B), D = this.distIle || 20;
+    s.background = fondCiel(d.climat); s.fog = new THREE.Fog(T.brume, D * (d.climat === 'ED' ? 1.1 : 1.5), D * (d.climat === 'ED' ? 3.6 : 4.8));
+    soleil(s, d.climat, 9);
+    s.add(fondMarin(T)); this.eau = mer(T); s.add(this.eau);
+    const b = new Bati(d.ile.seed % 997 + 1), dessous = sol3d(b, d.m, B, fondIle(T), 3); decor3d(b, d.m, B);
+    const terrain = b.maillage(); terrain.castShadow = true; s.add(terrain, dessous);
+    for (const a of d.assets) {
+      const r = modeleChose(a, B, hash(`${a.key}:${d.ile.seed}`), { eauHex: eau }), [x, y, z] = posTuile(d.m, a.tile, a.espece === 'barque');
+      r.objet.position.set(x, y, z); r.objet.rotation.y = (hash(`rot:${a.key}:${d.ile.seed}`) - .5) * .8; r.objet.userData.ech = ECH;
+      r.objet.traverse(o => { o.userData.key = a.key; });
+      s.add(r.objet); this.objets.set(a.key, r.objet); this.anims.push(...r.anims);
+      if (a.espece === 'barque') { const o = r.objet; this.anims.push(T => { o.position.y = Math.sin(T * 1.3 + x) * .02; o.rotation.z = Math.sin(T * 1.1 + z) * .04; }); }
+    }
+    if (d.phareTile) { const p = modelePhare(), [x, y, z] = posTuile(d.m, d.phareTile); p.objet.position.set(x, y, z); p.objet.userData.ech = ECH; p.objet.traverse(o => { o.userData.key = 'phare'; }); s.add(p.objet); this.objets.set('phare', p.objet); this.anims.push(...p.anims); }
+    const nu = nuages(4, d.climat === 'ED' || d.climat === 'AD', 12, d.ile.seed % 7); s.add(nu.grp); this.anims.push(nu.anim);
+    if (cl.oiseaux) { const oi = oiseaux(3, 6.5); s.add(oi.grp); this.anims.push(oi.anim); }
+    const sc = scintillements(16, 12); s.add(sc.grp); this.anims.push(sc.anim);
+    for (let k = 0; k < 3; k++) { const far = ileStatique(deriver({ id: `loin${k}`, seed: d.ile.seed + 101 * (k + 1), biome: d.ile.biome, depots: [] }), .3, 2, fondUni(T)), an = 2.2 + k * 1.3; far.position.set(Math.cos(an) * (30 + k * 8), 0, Math.sin(an) * (30 + k * 8)); far.scale.setScalar(.6); s.add(far); } // d’autres îles, au loin
+    this.anneau = new THREE.Mesh(new THREE.TorusGeometry(.5, .025, 4, 32), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .9 })); this.anneau.rotation.x = Math.PI / 2; this.anneau.visible = false; s.add(this.anneau);
+    this.orbite.limites = { elev: [.2, 1.1], dist: [7, 34] }; this.orbite.auto = true;
+    if (premiere) { this.zoomManuel = false; this.redim(); Object.assign(this.orbite.but, { elev: .44, dist: this.distIle }); this.orbite.but.cible.set(0, 1.1, 0); this.orbite.dist = this.distIle * 1.25; this.orbite.cible.set(0, 1.1, 0); }
+  }
+  tourner() { this.orbite.but.azim += Math.PI / 2; this.orbite.repos = 0; }
+  choisir(cle) {
+    this.sel = cle; const o = cle ? this.objets.get(cle) : null;
+    this.anneau.visible = !!o; if (o) this.anneau.position.set(o.position.x, o.position.y + .03, o.position.z);
+  }
+
+  montrerArchipel(items, opts = {}) {
+    this.mode = 'archipel'; this.cle = ''; this.vider(); this.items = items; this.focus = null; this.onArrivee = opts.onArrivee; this.nouvelle = opts.nouvelle;
+    const s = this.scene, T = teintes('ES', BIOMES.tropique);
+    this.redim(); const D = this.distArch, [L, P] = this.dimsArch;
+    s.background = fondCiel('ES'); s.fog = new THREE.Fog(T.brume, D * .95, D * 2.4);
+    soleil(s, 'ES', Math.max(L, P) * .75, false);
+    s.add(fondMarin(T, 200, { y: -.9 * .45 - .01, clair: false })); this.eau = mer(T, 200); s.add(this.eau); this.fondArch = fondUni(T);
+    for (const it of items) this.ajouterIle(it);
+    const nu = nuages(6, false, Math.max(L, P) * .8, 3, false); s.add(nu.grp); this.anims.push(nu.anim);
+    const oi = oiseaux(4, 16); s.add(oi.grp); this.anims.push(oi.anim);
+    for (let k = 0; k < 3; k++) { const v = voilier(), r = 14 + k * 5, ph = k * 2.2; s.add(v); this.anims.push(T => { const a = T * (.025 + k * .008) + ph; v.position.set(Math.cos(a) * r, Math.sin(T + k) * .03, Math.sin(a) * r * .75); v.rotation.y = -a - Math.PI / 2; }); }
+    this.anneau = new THREE.Mesh(new THREE.TorusGeometry(2.6, .06, 4, 48), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .9 })); this.anneau.rotation.x = Math.PI / 2; this.anneau.visible = false; s.add(this.anneau);
+    this.orbite.limites = { elev: [.35, 1.2], dist: [8, D * 1.4] }; this.orbite.auto = false;
+    Object.assign(this.orbite.but, { azim: 0, elev: .72, dist: this.distArch }); this.orbite.but.cible.set(0, 0, -1);
+    this.orbite.azim = 0; this.orbite.dist = this.distArch * 1.15; this.orbite.cible.set(0, 0, -1);
+    this.prochaine = (performance.now() - this.t0) / 1000 + 3;
+  }
+  ajouterIle(it, depuis = null) {
+    const grp = ileStatique(it.d || (it.d = deriver(it.ile)), .35, 3, this.fondArch), e = it.mine ? .52 : .45;
+    grp.scale.setScalar(e); grp.position.set(it.x, 0, it.z); grp.traverse(o => { o.userData.ile = it; });
+    this.scene.add(grp); it.grp = grp;
+    if (it.mine) { const lab = etiquette(it.label || 'la tienne'); lab.position.set(it.x, 2.6, it.z); this.scene.add(lab); it.lab = lab; }
+    if (depuis) { const t0 = (performance.now() - this.t0) / 1000, [x0, z0] = depuis, x1 = it.x, z1 = it.z; grp.position.set(x0, 0, z0); this.anims.push(T => { const p = Math.min(1, (T - t0) / 5), k = 1 - (1 - p) ** 3; grp.position.set(lerp(x0, x1, k), 0, lerp(z0, z1, k)); if (p >= 1 && !it.arrivee) { it.arrivee = true; this.vague(x1, z1, T); } }); }
+  }
+  vague(x, z, T0) { // une île arrive : un anneau s’ouvre sur l’eau
+    const m = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .8, depthWrite: false })); m.position.set(x, .02, z); this.scene.add(m);
+    this.anims.push(T => { const a = T - T0; if (a > 2) { m.visible = false; return; } m.scale.setScalar(1 + a * 2.2); m.material.opacity = (1 - a / 2) * .8; });
+  }
+  viser(it) { // s’approcher d’une île, ou revenir à l’archipel
+    this.focus = it;
+    if (it) { this.orbite.but.cible.set(it.x, .3, it.z); this.orbite.but.dist = 11; this.orbite.but.elev = .62; this.anneau.visible = true; this.anneau.position.set(it.x, .03, it.z); this.anneau.scale.setScalar(it.mine ? 1.2 : 1); }
+    else { this.orbite.but.cible.set(0, 0, -1); this.orbite.but.dist = this.distArch; this.orbite.but.elev = .72; this.anneau.visible = false; }
+  }
+
+  toucher(e) {
+    const r = this.canvas.getBoundingClientRect(), v = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    this.ray.setFromCamera(v, this.camera);
+    const hit = this.ray.intersectObjects(this.scene.children, true).find(h => h.object.userData.key || h.object.userData.ile);
+    if (this.mode === 'ile') { const cle = hit?.object.userData.key || null; this.choisir(cle); this.onTouche?.(cle); }
+    else { const it = hit?.object.userData.ile || null; this.viser(it); this.onTouche?.(it); }
+  }
+
+  frame() {
+    if (!this.actif) return;
+    const T = (performance.now() - this.t0) / 1000, dt = Math.min(.05, T - this.dernier || .016); this.dernier = T;
+    if (this.mode === 'archipel' && T > this.prochaine && !reduit && this.nouvelle) { const it = this.nouvelle(); this.items.push(it); this.ajouterIle(it, [it.x + (Math.random() - .5) * 8, -70]); this.onArrivee?.(it); this.prochaine = T + 5 + Math.random() * 6; }
+    this.orbite.maj(dt);
+    if (this.eau) this.eau.position.y = Math.sin(T * .6) * .015; // la marée, à peine
+    for (const f of this.anims) f(T);
+    const Tv = this.vieT ? this.vieT() : T;
+    if (this.mode === 'ile') for (const [cle, o] of this.objets) o.scale.setScalar((o.userData.ech || 1) * pop(this.vie.get(cle), Tv));
+    this.rendu.render(this.scene, this.camera);
+  }
+}
+
+/* ───────── L’îlot des graines ───────── */
+
+export class Ilot3D {
+  constructor(canvas) {
+    this.canvas = canvas; this.rendu = creerRendu(canvas, { alpha: true, ombres: true });
+    this.scene = new THREE.Scene(); this.camera = new THREE.PerspectiveCamera(28, 2, .1, 50);
+    const sun = new THREE.DirectionalLight('#fff4e4', 2.2); sun.position.set(3, 6, 4); sun.castShadow = true; sun.shadow.mapSize.set(512, 512); Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: .5, far: 20 }); sun.shadow.normalBias = .02;
+    this.scene.add(sun, new THREE.HemisphereLight('#eef8ff', '#e2d2b8', 1.6));
+    this.groupe = new THREE.Group(); this.scene.add(this.groupe); this.anims = []; this.cle = null; this.brule = null; this.t0 = performance.now(); this.objets = [];
+  }
+  redim() { const w = this.canvas.clientWidth || 300, h = this.canvas.clientHeight || 120; this.rendu.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); this.cadrer(); }
+  cadrer() { const r = this.rayon || .6, d = Math.max((1.9 + r) / (2 * Math.tan(this.camera.fov * Math.PI / 360)), (2 * r + .8) / (2 * Math.tan(this.camera.fov * Math.PI / 360) * this.camera.aspect)); this.camera.position.set(0, .3 + d * Math.sin(.32), d * Math.cos(.32)); this.camera.lookAt(0, .35, 0); }
+  maj(graines, B, seed, vie) {
+    this.vie = vie;
+    const cle = `${B === BIOMES.neige}:${Object.keys(BIOMES).find(k => BIOMES[k] === B)}:${seed}:${graines.map(g => `${g.key}/${g.espece}/${g.stade}/${g.propose ? 1 : 0}/${Object.entries(g.etats).filter(([, v]) => v).map(([k]) => k).join('+')}`).join(',')}`;
+    if (cle === this.cle) return;
+    this.cle = cle;
+    liberer(this.groupe); this.groupe.clear(); this.anims = []; this.objets = [];
+    const n = Math.max(1, Math.min(6, graines.length)), r = [.55, .78, .95, 1, 1.15, 1.2][n - 1], ech = n >= 3 ? .78 : 1; this.rayon = r;
+    const b = new Bati(seed % 97 + 1), k = { b, s: 1 };
+    F(k, cyl(r, r * .97, 12), B.sol.herbe[0], { y: -.03, sy: .06, ao: 0, varie: .05 });
+    F(k, cyl(r * .97, r * .9, 12), B.falaise[0], { y: -.12, sy: .13, ao: .3 });
+    F(k, cone(9), B.enneige ? '#b9c3cf' : '#b8a896', { y: -.62, sx: r * .9, sy: .9 + r * .3, sz: r * .9, rx: Math.PI, bosse: .12, graine: 3, ao: .35 });
+    const rr = n => { const r2 = (n * 16807 % 2147483647) / 2147483647; return r2; };
+    for (let i = 0; i < 7; i++) { const an = i * 2.4, d = r * (.35 + rr(i + seed) * .55); decor(b, tirer(B.decor.herbe, rr(i * 7 + seed)), B, Math.cos(an) * d, 0, Math.sin(an) * d, rr(i * 3 + 1)); }
+    const socle = b.maillage(); this.groupe.add(socle);
+    this.cailloux = [0, 1, 2].map(i => { const cb = new Bati(i + 4); F({ b: cb, s: 1 }, G.dode, B.enneige ? '#a9b3bf' : '#a39383', { s: .09 - i * .02, bosse: .2, graine: i }); const m = cb.maillage(); this.groupe.add(m); return m; });
+    const places = [[[0, 0]], [[-.3, 0], [.3, 0]], [[0, -.32], [-.34, .22], [.34, .22]], [[-.33, -.3], [.33, -.3], [-.33, .3], [.33, .3]], [[0, -.5], [-.48, -.12], [.48, -.12], [-.3, .42], [.3, .42]], [[-.5, -.3], [0, -.5], [.5, -.3], [-.5, .3], [0, .5], [.5, .3]]][n - 1];
+    graines.slice(0, 6).forEach((a, i) => {
+      const [x, z] = places[i], m = modeleChose(a, B, hash(`${a.key}:${seed}`), { bas: true, propose: a.propose, eauHex: eauDe('N', B) });
+      m.objet.position.set(x, 0, z); m.objet.userData.cle = a.key; m.objet.userData.ech = ech; this.groupe.add(m.objet); this.objets.push(m.objet); this.anims.push(...m.anims);
+    });
+    this.cadrer();
+  }
+  bruler() { this.brule = (performance.now() - this.t0) / 1000; }
+  frame() {
+    const T = (performance.now() - this.t0) / 1000;
+    this.groupe.rotation.y = reduit ? .5 : T * .22;
+    this.groupe.position.y = reduit ? 0 : Math.sin(T * .9) * .04;
+    this.cailloux?.forEach((c, i) => { const a = T * .3 + i * 2.1, r = (this.rayon || .6) * 1.25; c.position.set(Math.cos(a) * r, -.35 - i * .15 + Math.sin(T + i) * .05, Math.sin(a) * r); c.rotation.y = T * .5 + i; });
+    const Tv = this.vieT ? this.vieT() : T;
+    for (const o of this.objets) o.scale.setScalar(o.userData.ech * pop(this.vie?.get(o.userData.cle), Tv));
+    for (const f of this.anims) f(T);
+    if (this.brule != null) { const p = Math.min(1, (T - this.brule) / 1.3); this.groupe.scale.setScalar(1 - p * .7); this.groupe.position.y -= p * .8; if (p >= 1) { this.brule = null; this.groupe.scale.setScalar(1); } }
+    this.rendu.render(this.scene, this.camera);
+  }
+}
+
+/* ───────── Les aperçus des paysages ───────── */
+
+let atelier = null;
+export function apercu(cible, biome, depots) { // une petite île d’exemple, rendue une fois, copiée dans un canvas 2D
+  if (!atelier) { const c = document.createElement('canvas'); c.width = 280; c.height = 252; atelier = { c, r: creerRendu(c, { alpha: false, ombres: true }), cam: new THREE.PerspectiveCamera(30, 280 / 252, .1, 200) }; atelier.r.setPixelRatio(1); atelier.r.setSize(280, 252, false); }
+  const s = new THREE.Scene(), eau = eauDe('N', BIOMES[biome]); s.background = new THREE.Color('#5cc6de'); s.fog = new THREE.Fog('#8fd9ea', 20, 60);
+  const T = teintes('N', BIOMES[biome]); soleil(s, 'N', 8); s.add(fondMarin(T, 40), mer(T, 40));
+  const ex = { id: `apercu:${biome}`, seed: 90210, biome, depots }, ile = ileStatique(deriver(ex), .8, 2, fondIle(T)); s.add(ile);
+  atelier.cam.position.set(9.5, 9.5, 9.5); atelier.cam.lookAt(0, .2, 0);
+  atelier.r.render(s, atelier.cam);
+  const x = cible.getContext('2d'), w = cible.width, h = cible.height; x.drawImage(atelier.c, 0, 0, w, h);
+  liberer(s);
+}
+export { reduit };
