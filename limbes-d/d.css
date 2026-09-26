@@ -393,24 +393,31 @@ textarea:focus { outline: none; border-color: var(--accent); }
 }
 .companion canvas { display: block; width: 100%; height: 100%; }
 .ent-hint { position: absolute; right: 1.5rem; bottom: 0; margin: 0; color: var(--dim); font-size: .82rem; }
+.ent-note { position: absolute; left: 1.5rem; bottom: 0; margin: 0; color: var(--accent-ink); font-size: .82rem; font-weight: 700; }
 main { padding-top: .6rem; }
 
 /* ───────── L’île, et l’archipel ───────── */
 
 .ilewrap {
-  height: clamp(340px, 56vh, 620px);
+  aspect-ratio: 1 / 1.06;
+  max-height: 72vh;
   overflow: hidden;
   border-radius: 1.1rem;
   background: #8fd0f0;
   box-shadow: 0 .4rem 1.6rem rgba(43, 39, 35, .15);
   touch-action: manipulation;
 }
-.ilewrap.mer { background: #5fc2df; }
+.ilewrap.mer { aspect-ratio: 3 / 4; background: #5fc2df; }
 .ilewrap canvas { display: block; width: 100%; height: 100%; }
 .ile-caption { min-height: 1.4rem; margin: .6rem .2rem 0; color: var(--accent-ink); font-weight: 700; }
 .ile-caption .quiet { padding: 0; color: var(--accent-ink); font-weight: 700; text-decoration: underline; text-underline-offset: .2em; }
 .excerpt { margin: .3rem .2rem 0; padding: .6rem .8rem; border-left: 3px solid var(--line-hi); color: var(--muted); font-style: italic; }
 .ile-line { margin: .3rem .2rem 0; color: var(--muted); font-size: .95rem; }
+.loupe-row { display: flex; align-items: flex-start; gap: .8rem; margin-top: .6rem; }
+.loupe { flex: none; width: 7.5rem; height: 6.75rem; border-radius: .8rem; background: #5fc2df; box-shadow: 0 .2rem .8rem rgba(43, 39, 35, .15); }
+.loupe-row .ile-caption { margin-top: 0; }
+.propositions { display: grid; gap: .1rem; margin: 0 0 .6rem; }
+.propositions .check { margin: .15rem 0; }
 .nav.wrap { flex-wrap: wrap; gap: .3rem .9rem; }
 .legende { padding-left: 1.1rem; }
 .legende li { margin: .35rem 0; }
