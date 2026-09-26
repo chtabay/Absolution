@@ -147,7 +147,8 @@ h1:focus, .big:focus { outline: none; }
 .opt input:checked::before { transform: translate(-50%, -50%) rotate(45deg) scale(1); }
 .opt input:checked::after { transform: translate(-50%, -50%) rotate(-45deg) scale(1); }
 .opt input:focus-visible { outline: none; }
-.opt span { line-height: 1.35; }
+.opt span { flex: 1; line-height: 1.35; }
+.opt .mark { flex: none; width: .5rem; height: .5rem; margin: .5rem 0 0; border-radius: 50%; background: var(--accent); opacity: .7; }
 
 /* ───────── Boutons et navigation ───────── */
 

@@ -20,6 +20,7 @@ Les maquettes cliquables d’un autre concept : un endroit où l’on peut tout 
 
 **→ https://chtabay.github.io/Absolution/maquettes/**
 
+- `entites/` : **la planche de l’entité**. Quatre incarnations de ce qu’on dépose, réglables, et le geste de l’envoyer au monde. Voir [`entites/README.md`](entites/README.md).
 - `limbes-b/` : **B, les cases**. Trois questions à cocher, puis on voit. Fond clair, police ronde. Voir [`limbes-b/README.md`](limbes-b/README.md).
 - `limbes/` : **A, la page**. Une page, un curseur, des amorces. Sombre et grave, gardée pour comparer. Voir [`limbes/README.md`](limbes/README.md).
 
