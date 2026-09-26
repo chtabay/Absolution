@@ -60,9 +60,9 @@ body {
   margin: 0 auto;
   padding-inline: 1.1rem;
 }
-.head { display: flex; justify-content: space-between; align-items: baseline; padding-top: max(1rem, env(safe-area-inset-top)); }
-.brand { font-weight: 800; letter-spacing: .02em; color: var(--muted); }
-.brand small { margin-left: .4rem; font-weight: 500; color: var(--dim); }
+.head { display: flex; justify-content: space-between; align-items: center; padding-top: max(1rem, env(safe-area-inset-top)); }
+.brand { display: inline-flex; align-items: center; gap: .55rem; color: var(--ink); font-size: 1.35rem; font-weight: 800; letter-spacing: .01em; line-height: 1; }
+.logo { flex: none; width: 1.75rem; height: 1.75rem; }
 main { flex: 1; padding-top: 1.4rem; padding-bottom: 1.5rem; }
 .foot {
   display: flex;
@@ -363,18 +363,16 @@ textarea:focus { outline: none; border-color: var(--accent); }
 /* ───────── Les graines, en compagnie ───────── */
 
 .companion {
-  position: relative;
   width: 100%;
   max-width: 32rem;
-  height: 9.2rem;
   margin: .2rem auto 0;
   padding-inline: 1.1rem;
 }
-.companion canvas { display: block; width: 100%; height: 100%; }
-.companion.sans { height: auto; min-height: 1.2rem; }
-.companion.sans .ent-note { position: static; }
-.ent-hint { position: absolute; right: 1.5rem; bottom: 0; margin: 0; color: var(--dim); font-size: .82rem; }
-.ent-note { position: absolute; left: 1.5rem; bottom: 0; margin: 0; color: var(--accent-ink); font-size: .82rem; font-weight: 700; }
+.companion canvas { display: block; width: 100%; height: 8rem; }
+.ent-ligne { min-height: 1.2rem; text-align: center; font-size: .82rem; } /* sous l’îlot, jamais dessus */
+.ent-ligne p { margin: 0; }
+.ent-hint { color: var(--dim); }
+.ent-note { color: var(--accent-ink); font-weight: 700; }
 main { padding-top: .6rem; }
 
 /* ───────── L’île, et l’archipel ───────── */
