@@ -1,6 +1,6 @@
 # Limbes
 
-Un endroit où l’on peut tout déposer, sans prêtre ni jugement. On coche quelques cases, on écrit si on veut, et une île en 3D pousse avec ce qu’on dépose. Quand on veut, on la met dans un archipel, sans son nom.
+Un endroit où l’on peut tout déposer, sans jugement. On coche quelques cases, on écrit si on veut, et une île en 3D pousse avec ce qu’on dépose. Quand on veut, on la met dans un archipel, sans son nom.
 
 **→ https://chtabay.github.io/Absolution/limbes/**
 
@@ -85,7 +85,7 @@ Sans WebGL, la page reste utilisable : l’île et l’archipel ne s’affichent
 
 Le stockage local utilise le préfixe `limbes:`. Au premier passage, l’île faite avec les maquettes précédentes est reprise.
 
-Chaque fichier est appelé avec un numéro de version, `?v=1`. Après une modification, on augmente ce numéro dans les imports, pour qu’un téléphone ne mélange pas deux versions en cache.
+Chaque fichier est appelé avec un numéro de version, comme `?v=1`. Après une modification, on augmente le numéro de ce fichier là où il est appelé, pour qu’un téléphone ne mélange pas deux versions en cache.
 
 Tester en local, depuis la racine du dépôt :
 

@@ -74,7 +74,7 @@ const now = () => (performance.now() - t0) / 1000;
 /* ───────── Les graines, en compagnie ───────── */
 
 const companion = $('#companion'), entCanvas = $('#ent'), en3D = disponible();
-if (!en3D) { entCanvas.hidden = true; $('#ent-hint').hidden = true; companion.classList.add('sans'); } // sans 3D, pas d’îlot : les graines restent dites en mots
+if (!en3D) { entCanvas.hidden = true; $('#ent-hint').hidden = true; } // sans 3D, pas d’îlot : les graines restent dites en mots
 let preview = [];
 const ilot = en3D ? new Ilot3D(entCanvas) : null, vue = en3D ? new Vue3D() : null; // l’îlot des graines ; la vue de l’île et de l’archipel
 if (ilot) ilot.vieT = now;

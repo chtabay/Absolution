@@ -24,12 +24,11 @@
 <body>
   <main>
     <h1>Cette page n’existe pas.</h1>
-    <p><a id="accueil" href="/Absolution/">Absolution</a> · <a id="limbes" href="/Absolution/limbes/">Limbes</a></p>
+    <p><a id="limbes" href="/Absolution/limbes/">Aller à Limbes</a></p>
   </main>
   <script>
     (function () { // les liens suivent l’adresse du site, même s’il change de nom
       var base = /\.github\.io$/.test(location.hostname) ? '/' + location.pathname.split('/')[1] + '/' : '/';
-      document.getElementById('accueil').href = base;
       document.getElementById('limbes').href = base + 'limbes/';
     })();
   </script>
