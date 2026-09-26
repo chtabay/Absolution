@@ -4,7 +4,7 @@
 import { SUBJECTS, QUESTIONS, KEYS, BASE, LEX, HUMANS, MOCK } from './contenu.js?v=2';
 import { graines, quadDe, nomDe, phrasesDe, casesDe, sujetLabel, listeDe, listeGraines, FAMILLES, ESPECES, NOMS } from './grammaire.js?v=2';
 import { nouvelleIle, deriver, resume, archipelInvente, ileInventee, BIOMES, BIOME_IDS, biomeDe } from './ile.js?v=2';
-import { Vue3D, Ilot3D, apercu, disponible, ECH_ARCH } from './monde.js?v=2';
+import { Vue3D, Ilot3D, apercu, disponible, ECH_ARCH } from './monde.js?v=3';
 import { lire } from './lexique.js?v=1';
 
 const $ = s => document.querySelector(s);
@@ -108,19 +108,18 @@ let titre = null; // ce qui vient de pousser, pour le titre de l’écran
 function renderIle() {
   const d = regard ? deriver(regard) : courant, mine = !regard;
   const wrap = el('div', { className: 'ilewrap' });
-  const invite = d.assets.length ? 'Touche ce qui a poussé. Fais tourner l’île du doigt.' : 'Rien n’a encore poussé. Ça viendra avec ta première confession.';
+  const invite = d.assets.length ? 'Touche ce qui a poussé. Tourne l’île du doigt, écarte deux doigts pour zoomer.' : 'Rien n’a encore poussé. Ça viendra avec ta première confession.';
   const caption = el('p', { className: 'ile-caption', id: 'ile-caption', textContent: invite });
   const excerpt = el('p', { className: 'excerpt', id: 'ile-excerpt', hidden: true });
   const line = el('p', { className: 'ile-line', id: 'ile-line' });
-  const nav = el('nav', { className: 'nav wrap' });
-  const tourner = vue ? quiet('tourner', () => { vue.tourner(); note('geste : tourner l’île'); }) : ''; // sans 3D, rien à tourner
+  const nav = el('nav', { className: 'actions' }); // une action principale ; les autres, plus discrètes, à côté
   if (mine) {
-    nav.append(quiet('l’archipel', () => go('archipel')), tourner);
+    const brouillon = anyChecked() || state.text.trim();
+    nav.append(bouton(brouillon ? 'Reprendre ce que tu déposais' : 'Déposer autre chose', () => go('q:situ')));
     if (ile.depots.length) nav.append(quiet('changer d’île', changerSheet));
     else nav.append(quiet('choisir le paysage', paysageSheet));
     if (iles.length) nav.append(quiet('tes îles d’avant', ilesSheet));
-    nav.append(el('span', { className: 'spacer' }), quiet('recommencer', () => { clearDraft(); go('q:situ'); }));
-  } else nav.append(tourner, el('span', { className: 'spacer' }), quiet('revenir à ton île', () => { regard = null; go('ile'); }));
+  } else nav.append(bouton('Revenir à ton île', () => { regard = null; go('ile'); }));
   const pousses = el('ul', {}, ...(d.assets.length ? d.assets.map(a => el('li', { textContent: ligneDe(a, d) })) : [el('li', { textContent: 'rien encore' })]));
   const what = titre && mine ? titre : null;
   app.replaceChildren(
@@ -139,6 +138,9 @@ function renderIle() {
   if (!vue) { wrap.classList.add('sans'); caption.hidden = true; wrap.append(el('p', { className: 'sans3d', textContent: 'Cet appareil n’affiche pas la 3D. Ton île est bien là : ce qui a poussé est écrit plus bas.' })); updateIleLine(); return; }
   vue.attacher(wrap);
   vue.canvas.setAttribute('aria-label', mine ? 'Ton île, en 3D, et ce qui y a poussé' : 'Une de tes îles d’avant, en 3D');
+  const tourner = el('button', { type: 'button', className: 'tourner', innerHTML: ICONE_TOURNER }); // tourner, sur la vue elle-même
+  tourner.setAttribute('aria-label', 'Tourner l’île'); tourner.addEventListener('click', () => { vue.tourner(); note('geste : tourner l’île'); });
+  wrap.append(tourner);
   vue.montrerIle(d, { vie }); vue.choisir(null);
   vue.onTouche = key => {
     const best = key ? { key } : null;
@@ -248,9 +250,8 @@ function montrerArchipel(caption) {
 function renderArchipel() {
   const wrap = el('div', { className: 'ilewrap mer' });
   const caption = el('p', { className: 'ile-caption', id: 'arch-caption', textContent: INVITE_ARCH });
-  const nav = el('nav', { className: 'nav wrap' }, quiet('retour', () => history.back()));
-  if (!ile.envoyee && ile.depots.length) nav.append(quiet('y mettre ton île', envoyerSheet));
-  nav.append(el('span', { className: 'spacer' }), quiet('ton île', () => { regard = null; go('ile'); }));
+  const nav = el('nav', { className: 'actions' });
+  if (!ile.envoyee && ile.depots.length) { const b = bouton('Y mettre ton île', envoyerSheet); b.id = 'mettre-ile'; nav.append(b); }
   app.replaceChildren(
     el('p', { className: 'step', textContent: 'L’archipel' }),
     el('h1', { textContent: 'L’archipel, ce soir' }),
@@ -271,11 +272,23 @@ function renderArchipel() {
 
 /* ───────── Navigation ───────── */
 
+const bouton = (text, fn) => { const b = el('button', { type: 'button', className: 'btn', textContent: text }); b.addEventListener('click', fn); return b; };
+const ICONE_TOURNER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4.2h-4.2"/></svg>';
 const quiet = (text, fn) => { const b = el('button', { type: 'button', className: 'quiet', textContent: text }); b.addEventListener('click', fn); return b; };
 
 function go(screen) { history.pushState({ screen }, '', ''); render(screen); }
 
+let ecran = 'q:situ';
+const ongletDe = screen => (screen === 'ile' || screen === 'archipel' ? screen : 'deposer');
+const ONGLETS = { deposer: () => go('q:situ'), ile: () => { regard = null; go('ile'); }, archipel: () => go('archipel') };
+function updateOnglets() {
+  const actif = ongletDe(ecran), n = courant.assets.length, c = $('.onglets .compte');
+  for (const b of document.querySelectorAll('.onglets button')) { if (b.dataset.onglet === actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); }
+  c.hidden = !n; c.textContent = n;
+}
+
 function render(screen) {
+  ecran = screen;
   document.body.classList.toggle('short', state.short && screen === 'page');
   companion.hidden = ['after', 'ile', 'archipel'].includes(screen);
   if (!companion.hidden) ilot?.redim();
@@ -288,13 +301,7 @@ function render(screen) {
   scrollTo(0, 0);
   const h = app.querySelector('h1, .big');
   if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
-  updateIleBtn();
-}
-
-function updateIleBtn() {
-  const b = $('#ile-btn'), n = courant.assets.length;
-  b.hidden = !(n || iles.length);
-  b.textContent = n ? `ton île · ${n}` : 'ton île';
+  updateOnglets();
 }
 
 /* ───────── Les questions ───────── */
@@ -311,7 +318,7 @@ function renderQ(key) {
     step.textContent = q.extra ? 'Une question de plus' : `${i + 1} sur ${seq.length}`;
     next.textContent = (last ? 'Voir' : 'Suivant') + (n ? ` (${n})` : '');
     next.onclick = () => go(last ? 'orient' : `q:${seq[i + 1]}`);
-    nav.replaceChildren(key === 'situ' ? el('span') : quiet('retour', () => history.back()), el('span', { className: 'spacer' }), quiet('passer', next.onclick), next);
+    nav.replaceChildren(key === 'situ' ? el('span') : quiet('retour', () => history.back()), el('span', { className: 'spacer' }), next); // un seul bouton pour avancer, coché ou non
   };
   const list = el('div', { className: `opts${q.grid ? ' grid' : ''}` }, ...items.map(it => {
     const input = el('input', { type: 'checkbox', checked: has(key, it.id) });
@@ -598,7 +605,7 @@ function envoyerSheet() {
     if (vue && cap0) { montrerArchipel(cap0); if (moi) { vue.viser(moi); vue.vague(moi.x, moi.z, (performance.now() - vue.t0) / 1000); } }
     updateArchLine();
     const cap = $('#arch-caption'); if (cap) cap.textContent = 'Elle est là, parmi les autres. Elle y grandira avec toi.';
-    app.querySelectorAll('.nav .quiet').forEach(q => { if (q.textContent === 'y mettre ton île') q.remove(); });
+    $('#mettre-ile')?.remove();
   });
   openSheet(el('div', {},
     el('h2', { textContent: 'Y mettre ton île' }),
@@ -658,7 +665,7 @@ let afterLine = '';
 function renderAfter() {
   app.replaceChildren(el('div', { className: 'after' },
     el('p', { className: 'big', textContent: afterLine }),
-    el('div', { className: 'links' }, quiet('voir ton île', () => { regard = null; go('ile'); }), quiet('recommencer', () => { clearDraft(); go('q:situ'); }))));
+    el('div', { className: 'links' }, quiet('voir ton île', () => { regard = null; go('ile'); }), quiet('déposer autre chose', () => { clearDraft(); go('q:situ'); }))));
 }
 
 /* ───────── Boucle et départ ───────── */
@@ -675,7 +682,7 @@ addEventListener('resize', () => { if (!companion.hidden) ilot?.redim(); vue?.re
 
 loadDraft();
 derive();
-$('#ile-btn').addEventListener('click', () => { regard = null; go('ile'); });
+for (const b of document.querySelectorAll('.onglets button')) b.addEventListener('click', () => ONGLETS[b.dataset.onglet]());
 $('#humans').addEventListener('click', () => humansSheet());
 $('#exit').addEventListener('click', e => { e.preventDefault(); location.replace(e.currentTarget.href); });
 addEventListener('popstate', e => render(e.state?.screen || 'q:situ'));

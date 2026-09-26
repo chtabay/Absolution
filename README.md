@@ -6,11 +6,13 @@ Un endroit où l’on peut tout déposer, sans jugement. On coche quelques cases
 
 ## Le parcours
 
+En bas de l’écran, trois onglets restent toujours à portée de pouce : **Déposer**, **Ton île** et **L’archipel**. Chaque écran n’a qu’une action principale.
+
 1. **Les questions.** Quelques cases à cocher. En haut, un îlot montre en direct ce que les cases feraient pousser. Chaque case de la première question s’y voit : la terre qui recouvre ce qui n’a jamais été dit, le sentier de ce qui tourne en boucle, la taille selon l’ancienneté, un nuage gris quand on ne va pas bien du tout, un phare quand il y a un danger.
 2. **Par où aller ?** Parler à quelqu’un, écrire, le dire en trois lignes, juste le poser, ou voir son île.
 3. **La page.** Des débuts de phrases tirés des cases. Le texte est lu sur le téléphone, pour proposer des sujets. Si des mots inquiètent, des numéros d’écoute s’affichent.
 4. **Terminer.** Poser sur l’île, avec le texte gardé sur le téléphone si on veut, ou brûler.
-5. **L’île.** Ce qui vient de pousser, avec une phrase. On la fait tourner du doigt. Toucher une chose dit ce qu’elle est, d’après quelles cases, et depuis quand.
+5. **L’île.** Ce qui vient de pousser, avec une phrase. On la fait tourner du doigt, ou avec le bouton posé sur la vue, et on zoome en écartant deux doigts. Toucher une chose dit ce qu’elle est, d’après quelles cases, et depuis quand. L’action principale est « Déposer autre chose ».
 6. **Changer d’île.** Celle-ci reste sur le téléphone et se revoit. Elle peut rejoindre l’archipel sans nom : les autres verraient « une île avec deux arbres nus, une pierre et une maison », rien d’autre.
 7. **L’archipel.** Une mer au soir, avec des voiliers. Les îles des autres y arrivent depuis l’horizon, placées par sensation. Toucher une île fait s’en approcher.
 
