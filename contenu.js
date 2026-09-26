@@ -17,10 +17,8 @@ export const QUESTIONS = {
     { id: 'boucle', label: 'Ça tourne en boucle dans ma tête', chip: 'Ce qui tourne en boucle…', starter: 'Ce qui tourne en boucle, c’est ' },
     { id: 'longtemps', label: 'C’est lourd depuis longtemps', chip: 'Depuis longtemps…', starter: 'Depuis longtemps, ' },
     { id: 'recent', label: 'C’est arrivé récemment', chip: 'Il y a peu…', starter: 'Il y a peu, ' },
-    { id: 'personne', label: 'Personne ne le sait', chip: 'Personne ne sait que…', starter: 'Personne ne sait que ' },
     { id: 'pasbien', label: 'Je ne suis pas bien du tout', soft: true },
     { id: 'danger', label: 'Je suis en danger, ou quelqu’un l’est', strong: true },
-    { id: 'poser', label: 'Je veux juste le poser quelque part' },
   ] },
   mots: { key: 'Ça ressemble à', title: 'Ça ressemble à quoi ?', hint: 'Un mot, plusieurs, ou aucun.', grid: true, items: [
     { id: 'colere', label: 'de la colère', q: 'AD' }, { id: 'rage', label: 'de la rage', q: 'AD' }, { id: 'peur', label: 'de la peur', q: 'AD' }, { id: 'angoisse', label: 'de l’angoisse', q: 'AD' },
@@ -35,10 +33,9 @@ export const QUESTIONS = {
     if (a.situ.has('pasbien')) { bump(s, ['vide', 'fatigue', 'tristesse'], 2); bump(s, ['angoisse'], 1); }
     if (a.situ.has('danger')) { bump(s, ['peur'], 3); bump(s, ['angoisse'], 2); }
     if (a.situ.has('boucle')) { bump(s, ['angoisse'], 2); bump(s, ['culpa'], 1); }
-    if (a.situ.has('jamais') || a.situ.has('personne')) bump(s, ['honte', 'solitude'], 2);
+    if (a.situ.has('jamais')) bump(s, ['honte', 'solitude'], 2);
     if (a.situ.has('recent')) bump(s, ['colere', 'tristesse'], 1);
     if (a.situ.has('longtemps')) bump(s, ['fatigue', 'vide'], 1);
-    if (a.situ.has('poser')) bump(s, ['soulagement'], 1);
     return s;
   } },
   sujets: { key: 'Ça parle de', title: 'De quoi ça parle ?', hint: 'Un sujet, plusieurs, ou aucun.', items: SUBJECTS.map(([t], i) => ({ id: `s${i}`, label: t })), boost: a => {
@@ -51,7 +48,7 @@ export const QUESTIONS = {
     if (a.mots.has('colere') || a.mots.has('rage')) bump(s, ['s5', 's7', 's4', 's0'], 1);
     if (a.mots.has('envie') || a.mots.has('espoir')) { bump(s, ['s14'], 2); bump(s, ['s13'], 1); }
     if (a.mots.has('fatigue')) { bump(s, ['s7'], 2); bump(s, ['s9'], 1); }
-    if (a.situ.has('jamais') || a.situ.has('personne')) bump(s, ['s1', 's3', 's13'], 1);
+    if (a.situ.has('jamais')) bump(s, ['s1', 's3', 's13'], 1);
     return s;
   } },
   fait: { key: 'Ce que tu as fait', title: 'Si c’est quelque chose que tu as fait…', hint: 'Une question de plus, d’après tes cases. Coche ce qui est vrai, ou rien.', extra: true,

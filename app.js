@@ -1,10 +1,10 @@
 // L’archipel : les cases, les graines, l’île qui pousse, et l’archipel où la poser, en 3D.
 // Tout reste sur cet appareil ; rien ne part. Pour l’instant, les îles des autres sont inventées.
 
-import { SUBJECTS, QUESTIONS, KEYS, BASE, LEX, HUMANS, MOCK } from './contenu.js?v=1';
-import { graines, quadDe, nomDe, phrasesDe, casesDe, sujetLabel, listeDe, listeGraines, FAMILLES, ESPECES, NOMS } from './grammaire.js?v=1';
-import { nouvelleIle, deriver, resume, archipelInvente, ileInventee, BIOMES, BIOME_IDS, biomeDe } from './ile.js?v=1';
-import { Vue3D, Ilot3D, apercu, disponible } from './monde.js?v=1';
+import { SUBJECTS, QUESTIONS, KEYS, BASE, LEX, HUMANS, MOCK } from './contenu.js?v=2';
+import { graines, quadDe, nomDe, phrasesDe, casesDe, sujetLabel, listeDe, listeGraines, FAMILLES, ESPECES, NOMS } from './grammaire.js?v=2';
+import { nouvelleIle, deriver, resume, archipelInvente, ileInventee, BIOMES, BIOME_IDS, biomeDe } from './ile.js?v=2';
+import { Vue3D, Ilot3D, apercu, disponible, ECH_ARCH } from './monde.js?v=2';
 import { lire } from './lexique.js?v=1';
 
 const $ = s => document.querySelector(s);
@@ -76,7 +76,7 @@ const now = () => (performance.now() - t0) / 1000;
 
 const companion = $('#companion'), entCanvas = $('#ent'), en3D = disponible();
 if (!en3D) { entCanvas.hidden = true; $('#ent-hint').hidden = true; } // sans 3D, pas d’îlot : les graines restent dites en mots
-let preview = [];
+let preview = [], signes = {}; // les graines, et ce que l’îlot montre en plus : le phare, le ciel lourd
 const ilot = en3D ? new Ilot3D(entCanvas) : null, vue = en3D ? new Vue3D() : null; // l’îlot des graines ; la vue de l’île et de l’archipel
 if (ilot) ilot.vieT = now;
 if (vue) vue.vieT = now;
@@ -89,7 +89,8 @@ function derive() { // ce que la confession en cours ferait pousser
   const before = new Set(preview.map(a => a.key));
   lu = lire(state.text);
   proposes = lu.sujets.map(([id]) => id).filter(id => !state.answers.sujets.has(id));
-  const g = anyChecked() || state.text.trim() ? graines(avecPropositions(), state.text.trim(), state.answers.mots.size ? null : { quad: lu.quad }).graines : [];
+  const r = anyChecked() || state.text.trim() ? graines(avecPropositions(), state.text.trim(), state.answers.mots.size ? null : { quad: lu.quad }) : null, g = r ? r.graines : [];
+  signes = { phare: !!r?.phare, lourd: !!r?.lourd };
   for (const x of g) if (x.sujet && proposes.includes(x.sujet) && !state.answers.sujets.has(x.sujet)) x.propose = true;
   preview = g;
   for (const a of preview) if (!before.has(a.key)) vie.set(a.key, now());
@@ -97,7 +98,7 @@ function derive() { // ce que la confession en cours ferait pousser
   if (noteEl) { const ids = acceptes(); noteEl.hidden = !ids.length; noteEl.textContent = ids.length ? `Ton texte parle aussi de${NB}: ${ids.map(sujetLabel).join(' · ')}` : ''; }
 }
 
-function drawCompanion() { if (!ilot) return; ilot.maj(preview, biomeDe(ile.biome), ile.seed, vie); ilot.frame(); }
+function drawCompanion() { if (!ilot) return; ilot.maj(preview, biomeDe(ile.biome), ile.seed, vie, signes); ilot.frame(); }
 
 /* ───────── L’île, à l’écran ───────── */
 
@@ -189,7 +190,7 @@ if (vue) vue.dimsArch = [LARG, PROF];
 const posArch = (a, v) => [(v - .5) * LARG, (.5 - a) * PROF]; // supportable à droite, agité au loin
 
 function ecarter(items, fixes = []) { // les îles ne se chevauchent pas : on les écarte un peu, autour de leur place
-  const tous = [...fixes, ...items], fixe = new Set(fixes), R = it => (it.mine ? 2.2 : 1.85);
+  const tous = [...fixes, ...items], fixe = new Set(fixes), R = it => (it.d || (it.d = deriver(it.ile))).m.rayon * ECH_ARCH + .15; // chaque île, selon sa taille
   for (let k = 0; k < 150; k++) {
     let bouge = false;
     for (let i = 0; i < tous.length; i++) for (let j = i + 1; j < tous.length; j++) {
@@ -207,7 +208,7 @@ function ecarter(items, fixes = []) { // les îles ne se chevauchent pas : on le
 }
 
 function placerArchipel() {
-  const items = arch.autres.map(o => ({ ...o, mine: false }));
+  const items = arch.autres.map(o => ({ ...o, d: o.d || (o.d = deriver(o.ile)), mine: false }));
   for (const m of miennes()) { const d = deriver(m), r = resume(d); items.push({ ile: m, d, a: r.a, v: r.v, mine: true, label: m === ile ? 'la tienne' : `la tienne, ${mois(m.nee).split(' ')[0]}` }); }
   for (const it of items) [it.x, it.z] = posArch(it.a, it.v);
   ecarter(items);
@@ -342,7 +343,7 @@ function starters() {
 const pousseraient = () => (preview.length ? `Ça ferait pousser ${listeGraines(preview)}.` : 'Rien coché : ça poserait un caillou.');
 
 function renderOrient() {
-  const sig = signals(), poser = has('situ', 'poser'), total = anyChecked();
+  const sig = signals(), total = anyChecked();
   const recap = el('div', { className: 'recap' });
   if (!total) recap.append(el('p', { className: 'hint', textContent: 'Tu n’as rien coché. C’est très bien aussi. Voilà par où on peut aller.' }));
   else for (const k of KEYS) {
@@ -362,10 +363,9 @@ function renderOrient() {
   };
   const humans = () => humansSheet(sig.other ? 'other' : 'self');
   if (sig.strong) path('Parler à quelqu’un, maintenant', 'des humains, à toute heure', humans, 'first');
-  if (poser) path('Juste le poser', 'sans écrire : sur l’île, ou au feu', finishSheet);
   path('Écrire', starters().length ? 'avec des débuts de phrases tirés de tes cases' : 'la page est à toi', () => { state.short = false; go('page'); });
   path('Le dire en trois lignes', 'court, et c’est tout', () => { state.short = true; go('page'); });
-  if (!poser) path('Juste le poser', 'sans écrire : sur l’île, ou au feu', finishSheet);
+  path('Juste le poser', 'sans écrire : sur l’île, ou au feu', finishSheet);
   if (!sig.strong && sig.soft) path('Parler à quelqu’un', 'des humains, ailleurs, à toute heure', humans);
   path('Voir ton île', courant.assets.length ? 'ce qui a poussé, et l’archipel' : 'elle est vide, pour l’instant', () => { regard = null; go('ile'); });
   const seq = sequence();

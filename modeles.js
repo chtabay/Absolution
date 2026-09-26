@@ -178,9 +178,9 @@ function arbre(a, k) {
 function pierre(a, k) {
   const B = k.B, e = a.espece, st = a.stade, v = k.v, tons = PIERRES[e] || PIERRES.pierre, g = v * 13;
   const forme = ['cairn', 'caillou', 'galet'].includes(e) ? e : st >= 3 ? 'menhir' : choix(['bloc', 'rond', 'dalle'], v);
-  const w = [.3, .45, .62, .38][st], h = [.22, .34, .48, 1.05][st], bas = a.etats.ferme && st < 3 ? -h * .3 : 0;
+  const w = [.3, .45, .62, .38][st], h = [.22, .34, .48, 1.05][st], bas = a.etats.ferme && st < 3 ? -h * .45 : 0;
   let hh = h;
-  if (forme === 'caillou') { F(k, G.dode, tons[1], { y: .07 + bas, sx: .13 + st * .03, sy: .09 + st * .02, sz: .11 + st * .03, bosse: .18, graine: g }); if (v > .5) F(k, G.dode, tons[0], { x: .15, y: .04, z: .08, s: .05, bosse: .2, graine: g + 1 }); hh = 0; }
+  if (forme === 'caillou') { const c = [.09, .15, .22, .26][st]; F(k, G.dode, tons[1], { y: c * .55 + bas * .6, sx: c, sy: c * .7, sz: c * .85, bosse: .18, graine: g }); if (v > .5) F(k, G.dode, tons[0], { x: c + .04, y: .04, z: .08, s: .05, bosse: .2, graine: g + 1 }); hh = 0; } // récent, il est petit ; ancien, il est gros
   else if (forme === 'galet') { [[-.1, .02, 1], [.13, .08, .75], [0, -.1, .6]].slice(0, 1 + Math.min(2, st)).forEach(([x, z, s], i) => F(k, G.sphL, tons[i % 2], { x, y: .045 * s, z, sx: .14 * s, sy: .06 * s, sz: .11 * s, ao: .3 })); hh = 0; }
   else if (forme === 'cairn') { let y = 0, r = .2 + st * .03; for (let i = 0; i < 2 + st; i++) { const hi = .07 + .015 * (2 + st - i); F(k, G.dode, tons[i % 3], { x: (i % 2 ? .02 : -.02), y: y + hi * .5, sx: r, sy: hi, sz: r * .85, ry: i, bosse: .12, graine: g + i }); y += hi * .9; r *= .8; } hh = 0; }
   else if (forme === 'menhir') { F(k, G.box, tons[1], { y: h / 2, sx: w * .55, sy: h, sz: w * .3, ry: v * 2, bosse: .1, graine: g }); const r = rngL(g); for (let i = 0; i < 14; i++) { const t = i / 14, an = t * 12.5, rr = .02 + t * .08; F(k, G.sph, '#e6e2d8', { x: Math.cos(v * 2) * Math.cos(an) * rr, y: h * .56 + Math.sin(an) * rr, z: w * .16 + .01 - Math.sin(v * 2) * Math.cos(an) * rr * .2, s: .012, ao: 0 }); } r(); }
@@ -189,7 +189,9 @@ function pierre(a, k) {
   else F(k, G.dode, tons[1], { y: h * .45 + bas, sx: w * .55, sy: h * .56, sz: w * .46, ry: v * 3, bosse: .16, graine: g, ao: .35 });
   if (hh && !B.enneige && (e === 'moussue' || (B.mousse && e !== 'sombre' && v > .45))) F(k, G.ico1, '#86b94f', { y: hh * .9 + bas, sx: w * .38, sy: hh * .14, sz: w * .34, bosse: .18, graine: g + 3, ao: .2 });
   if (hh && B.enneige) F(k, G.ico1, '#ffffff', { y: hh * .92 + bas, sx: w * .42, sy: hh * .15, sz: w * .36, bosse: .15, graine: g + 4, ao: 0 });
-  if (a.etats.ferme && st < 3) F(k, G.ico1, (B.sol.herbe || B0.sol.herbe)[1], { y: .015, sx: w * .75, sy: .07, sz: w * .62, bosse: .12, graine: g + 5, ao: .2 });
+  if (a.etats.ferme && st < 3) { // jamais dit : la terre la recouvre à moitié
+    const f = B.falaise || B0.falaise; F(k, G.ico1, f[0], { y: .02, sx: w * .82, sy: .11, sz: w * .7, bosse: .14, graine: g + 5, ao: .25 }); F(k, G.ico1, (B.sol.herbe || B0.sol.herbe)[1], { y: .07, sx: w * .6, sy: .05, sz: w * .5, bosse: .12, graine: g + 6, ao: .1 });
+  }
   if (a.etats.fissure && hh) F(k, G.box, '#3d3948', { y: hh * .5 + bas, z: w * .22, sx: .02, sy: hh * .7, sz: .02, rz: .2, ao: 0 });
   if (a.etats.mousse) { for (const [x, z] of [[-.2, .1], [.18, .12], [0, -.18]]) F(k, G.ico1, '#7bb661', { x, y: .02, z, sx: .08, sy: .03, sz: .07, bosse: .2, ao: 0 }); fleurette(k, -.26, .16, '#ff6b6b'); fleurette(k, .25, .18, '#ffd166'); }
 }
@@ -261,7 +263,7 @@ function maison(a, k) {
     return;
   }
   const lieu = i => { const vv = (v + i * .29) % 1; return { murs: choix(B.maisons.murs, vv), toit: choix(B.maisons.toits, (vv * 3.7) % 1), style: choix(B.maisons.styles, (vv * 5.3) % 1), neige: B.enneige, graine: i + 1 }; };
-  const ici = { ...lieu(0), lit: a.etats.lueur, volets: e === 'volets' && a.quad[1] !== 'S', ferme: a.etats.ferme };
+  const ici = { ...lieu(0), lit: a.etats.lueur, volets: (e === 'volets' && a.quad[1] !== 'S') || a.etats.ferme, ferme: a.etats.ferme }; // jamais dit : les volets sont clos
   if (st >= 3) { boite({ ...k, dx: (k.dx || 0) - .34 * s0, dz: (k.dz || 0) - .26 * s0, s: s0 * .62 }, lieu(1)); boite({ ...k, dx: (k.dx || 0) + .34 * s0, dz: (k.dz || 0) - .24 * s0, s: s0 * .58 }, lieu(2)); }
   else if (st >= 2) boite({ ...k, dx: (k.dx || 0) - .34 * s0, dz: (k.dz || 0) - .24 * s0, s: s0 * .6 }, lieu(1));
   boite({ ...k, s: s0 * (st === 0 ? .74 : .95) }, ici);
@@ -393,7 +395,7 @@ export function phare(k) {
   }
 }
 function etatsCommuns(a, k) {
-  if (a.etats?.boucle && a.famille !== 'meteo') F(k, new THREE.TorusGeometry(.42, .04, 4, 20), '#d6b98a', { y: .012, rx: Math.PI / 2, sz: .3, ao: 0 });
+  if (a.etats?.boucle && a.famille !== 'meteo') F(k, new THREE.TorusGeometry(.44, .065, 4, 24), '#d9bb86', { y: .014, rx: Math.PI / 2, sz: .25, ao: 0 }); // en boucle : un sentier usé tout autour
   if (a.etats?.lueur && !(a.famille === 'maison' && ['maison', 'volets'].includes(a.espece)) && k.grp) {
     const orbe = new THREE.Mesh(G.ico1, new THREE.MeshBasicMaterial({ color: '#fff6d8', toneMapped: false })), h = halo('#ffd98a', .7, .95), s = k.s ?? 1, x0 = .32 * s + (k.dx || 0), y0 = (a.famille === 'arbre' ? .8 : .55) * s + (k.dy || 0), z0 = .2 * s + (k.dz || 0);
     orbe.scale.setScalar(.035 * s); k.grp.add(orbe, h); const ph = x0 * 3 + z0 * 5;
